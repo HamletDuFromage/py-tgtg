@@ -1,0 +1,25 @@
+{
+    "api": {
+        "credentials": {
+            "email": "anon@domain.tld"
+        },
+        "session": {},
+        "deviceType": "IOS",
+        "headers": {
+            "User-Agent": "TooGoodToGo/21.9.0 (813) (iPhone/iPhone 7 (GSM); iOS 15.1; Scale/2.00)",
+            "Content-Type": "application/json",
+            "Accept": "",
+            "Accept-Language": "en-US",
+            "Accept-Encoding": "gzip"
+        },
+        "params": {
+            "responseType": "json",
+            "resolveBodyOnly": true
+        }
+    },
+    "origin": {
+        "latitude": 50.52137526726056,
+        "longitude": 1.590754023964405
+    },
+    "targets": {}
+}
