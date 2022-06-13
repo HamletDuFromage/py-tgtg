@@ -28,7 +28,7 @@ class User:
         self.type = update.effective_chat.type
         self.user_id = update.effective_user.id
         self.name = update.effective_user.first_name
-        self.config_fname = f"{PATH}/config_{self.chat_id}.json"
+        self.config_fname = f"config_{self.chat_id}.json"
         self.createConfig(self.config_fname)
         self.polling_id = None
         self.watch_interval = DEFAULT_WATCH_INTERVAL
