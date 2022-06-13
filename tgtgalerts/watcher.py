@@ -3,7 +3,7 @@ import api
 import threading
 import time
 import json
-from tgtgalerts.exceptions import TgtgConnectionError, TgtgForbiddenError, TgtgLoggedOutError, TgtgUnauthorizedError
+from .exceptions import TgtgConnectionError, TgtgForbiddenError, TgtgLoggedOutError, TgtgUnauthorizedError
 
 
 class TooGoodToGoWatcher:

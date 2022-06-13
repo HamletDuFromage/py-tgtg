@@ -1,15 +1,13 @@
-import tgtgalerts.api
+from .api import TooGoodToGoApi
 
 import asyncio
 import logging
-import socket
-import requests
 import os
 import sys
 import shutil
 import pathlib
 import random
-from exceptions import TgtgConnectionError, TgtgForbiddenError, TgtgLoggedOutError, TgtgUnauthorizedError
+from .exceptions import TgtgConnectionError, TgtgForbiddenError, TgtgLoggedOutError, TgtgUnauthorizedError
 from telegram import Update, Bot
 from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, MessageHandler, filters
 
@@ -19,13 +17,9 @@ MAX_FAILED_REQUESTS = 3
 
 DEFAULT_WATCH_INTERVAL = 15.0
 
-TGTG_TELEGRAM_ADMIN_ID = os.getenv("TGTG_TELEGRAM_ADMIN_ID")
-BOT_ADMINS = [int(TGTG_TELEGRAM_ADMIN_ID)]
-
 PATH = pathlib.Path(__file__).parent.resolve()
 
-LOGS = f"{PATH}/telegram-bot.log"
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO, filename=LOGS)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO, filename="telegrambot.log")
 
 
 class User:
@@ -35,21 +29,21 @@ class User:
         self.user_id = update.effective_user.id
         self.name = update.effective_user.first_name
         self.config_fname = f"{PATH}/config_{self.chat_id}.json"
-        self.createConfig()
-        self.api = api.TooGoodToGoApi(self.config_fname)
-        self.api.config.setdefault("targets", {})
-        self.targets = self.api.config.get("targets")
+        self.createConfig(self.config_fname)
         self.polling_id = None
         self.watch_interval = DEFAULT_WATCH_INTERVAL
         self.watching = False
         self.watcher = None
         self.seen = {}
         self.failed_requests = 0
+        self.api = TooGoodToGoApi(self.config_fname)
+        self.api.config.setdefault("targets", {})
+        self.targets = self.api.config.get("targets")
         logging.info(f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id}")
 
-    def createConfig(self):
-        if not os.path.exists(self.config_fname):
-            shutil.copy(f"{PATH}/config.json.defaults", self.config_fname)
+    def createConfig(self, f_name):
+        if not os.path.exists(f_name):
+            shutil.copy(f"{PATH}/config.json.defaults", f_name)
 
     def stopWatching(self):
         self.watching = False
@@ -96,22 +90,21 @@ class TooGoodToGoTelegram:
 
         self.application = ApplicationBuilder().token(TOKEN).build()
 
-        self.handleHandlers()
+        self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
+                        self.login_continue: "Confirm login request", self.add_target: "Add an item to watch/purchase", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
+                        self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.status: "Show the bot's status",
+                        self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
+                        self.error: "See common errors", self.start: "Welcome"}
         self.users = {}
 
     def runBot(self):
+        self.handleHandlers()
         self.application.run_polling()
 
     def handleHandlers(self):
-        self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
-                         self.login_continue: "Confirm login request", self.add_target: "Add an item to watch/purchase", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
-                         self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.status: "Show the bot's status",
-                         self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
-                         self.error: "See common errors", self.start: "Welcome"}
         for func in self.commands.keys():
             self.application.add_handler(CommandHandler(func.__name__, func))
-        self.application.add_handler(MessageHandler(
-            filters.COMMAND, self.wrong_command))
+        self.application.add_handler(MessageHandler(filters.COMMAND, self.wrong_command))
 
     def getUser(self, update):
         chat_id = update.effective_chat.id
@@ -245,7 +238,7 @@ class TooGoodToGoTelegram:
     async def login(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
         user = self.getUser(update)
         try:
-            auth_email_response = self.api.authByEmail()
+            auth_email_response = user.api.authByEmail()
             user.polling_id = auth_email_response.json().get("polling_id")
             text = f"📧 The login email should have been sent to {user.api.getCrendentials().get('email')}. Open the email on your PC and click the link. Don't open the email on a phone that has the TooGoodToGo app installed. That won't work.\nSend /login_continue when you clicked the link."
             await context.bot.send_message(chat_id=user.chat_id, text=text)
@@ -258,7 +251,7 @@ class TooGoodToGoTelegram:
             text = "Run /login before running this command."
         else:
             try:
-                self.api.authPoll(user.polling_id)
+                user.api.authPoll(user.polling_id)
                 text = "✔️ Successfully logged in!"
             except TgtgConnectionError:
                 text = "❌ Failed to login."
@@ -293,13 +286,13 @@ class TooGoodToGoTelegram:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="🤔 Invalid command.\nType /help for help.")
 
 
-async def setCommands(TOKEN, commands):
-    init = Bot(TOKEN)
-    hints = []
-    for key, value in commands.items():
-        hints.append(("/" + key.__name__, value))
-    async with init:
-        await init.setMyCommands(hints)
+    async def setCommands(self):
+        init = Bot(self.TOKEN)
+        hints = []
+        for key, value in self.commands.items():
+            hints.append(("/" + key.__name__, value))
+        async with init:
+            await init.setMyCommands(hints)
 
 if __name__ == '__main__':
 
@@ -311,7 +304,7 @@ if __name__ == '__main__':
         bot = TooGoodToGoTelegram(TOKEN)
 
         loop = asyncio.new_event_loop()
-        commands = loop.run_until_complete(setCommands(TOKEN, bot.commands))
+        commands = loop.run_until_complete(bot.setCommands())
         loop.close()
 
         bot.runBot()

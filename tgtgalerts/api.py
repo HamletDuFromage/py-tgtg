@@ -2,7 +2,7 @@
 import json
 import httpx
 import random
-from tgtgalerts.exceptions import TgtgConnectionError, TgtgForbiddenError, TgtgLoggedOutError, TgtgUnauthorizedError, TgtgOrderError
+from .exceptions import TgtgConnectionError, TgtgForbiddenError, TgtgLoggedOutError, TgtgUnauthorizedError, TgtgOrderError
 
 class TooGoodToGoApi:
     def __init__(self, config_fname = "config.json"):
