@@ -1,4 +1,4 @@
-import api
+import tgtgalerts.api
 
 import asyncio
 import logging
