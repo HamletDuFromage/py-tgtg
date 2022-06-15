@@ -1,1 +1,1 @@
-# tgtg-alerts
+# py-tgtg
