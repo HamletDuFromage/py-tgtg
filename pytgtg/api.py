@@ -10,7 +10,7 @@ class TooGoodToGoApi:
         self.config = self.loadConfig()
         self.config["origin"] = self.randomizeLocation(self.config.get("origin"))
         self.baseurl = "https://apptoogoodtogo.com/api/"
-        self.client = self.newClient()
+        self.newClient()
         self.requests_count = 0
         self.failed_requests = 0
 
