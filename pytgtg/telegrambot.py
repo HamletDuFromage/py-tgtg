@@ -115,7 +115,7 @@ class TooGoodToGoTelegram:
     def errorText(self, error):
         return f"{repr(error)}\nType /error for more info."
 
-    async def handleError(self, error, update, context):
+    async def handleError(self, error, user, update, context):
         await context.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
         if type(error) == TgtgUnauthorizedError:
             await self.refresh(update, context)
@@ -158,7 +158,7 @@ class TooGoodToGoTelegram:
                     if text:
                         await self.send_pinned_message(context=context, chat_id=user.chat_id, text=f"Got following matches:\n{text}")
             except TgtgConnectionError as error:
-                await self.handleError(error, update, context)
+                await self.handleError(error, user, update, context)
                 pass
             await asyncio.sleep(user.watch_interval * self.randMultiplier())
         user.stopWatching()
@@ -243,7 +243,7 @@ class TooGoodToGoTelegram:
             text = f"📧 The login email should have been sent to {user.api.getCrendentials().get('email')}. Open the email on your PC and click the link. Don't open the email on a phone that has the TooGoodToGo app installed. That won't work.\nSend /login_continue when you clicked the link."
             await context.bot.send_message(chat_id=user.chat_id, text=text)
         except TgtgConnectionError as error:
-            await self.handleError(error, update, context)
+            await self.handleError(error, user, update, context)
 
     async def login_continue(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
         user = self.getUser(update)
@@ -263,7 +263,7 @@ class TooGoodToGoTelegram:
             refresh = user.api.login()
             await context.bot.send_message(chat_id=user.chat_id, text=f"Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
-            await self.handleError(error, update, context)
+            await self.handleError(error, user, update, context)
 
     async def clear_history(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
