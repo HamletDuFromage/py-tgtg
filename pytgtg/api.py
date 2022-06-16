@@ -4,8 +4,9 @@ import httpx
 import random
 from .exceptions import TgtgConnectionError, TgtgForbiddenError, TgtgLoggedOutError, TgtgUnauthorizedError, TgtgOrderError
 
+
 class TooGoodToGoApi:
-    def __init__(self, config_fname = "config.json"):
+    def __init__(self, config_fname="config.json"):
         self.config_fname = config_fname
         self.config = self.loadConfig()
         self.config["origin"] = self.randomizeLocation(self.config.get("origin"))
@@ -23,9 +24,12 @@ class TooGoodToGoApi:
     def url(self, endpoint):
         return f"{self.baseurl}{endpoint}"
 
-    def newClient(self, proxy = ""):
+    def newClient(self, proxy=""):
         try:
-            self.client = httpx.Client(cookies=httpx.Cookies(), params=self.config.get("api").get("params"), proxies=proxy)
+            self.client = httpx.Client(
+                cookies=httpx.Cookies(),
+                params=self.config.get("api").get("params"),
+                proxies=proxy)
         except ValueError:
             self.client = httpx.Client(cookies=httpx.Cookies(), params=self.config.get("api").get("params"))
 
@@ -47,12 +51,12 @@ class TooGoodToGoApi:
     def authByEmail(self):
         json = {
             "device_type": self.config.get("api").get("deviceType", "ANDROID"),
-            "email": self.getCrendentials().get("email")
+            "email": self.getCredentials().get("email")
         }
         return self.post("auth/v3/authByEmail", json=json)
 
     def authPoll(self, polling_id):
-        credentials = self.getCrendentials()
+        credentials = self.getCredentials()
         json = {
             "device_type": self.config.get("api").get("deviceType", "ANDROID"),
             "email": credentials.get("email"),
@@ -74,7 +78,7 @@ class TooGoodToGoApi:
     def getHeaders(self):
         return self.config.get("api").get("headers")
 
-    def getCrendentials(self):
+    def getCredentials(self):
         return self.config.get("api").get("credentials")
 
     def refreshToken(self):
