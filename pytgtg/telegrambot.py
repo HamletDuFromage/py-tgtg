@@ -6,7 +6,7 @@ import random
 import shutil
 
 from telegram import Bot, Update
-from telegram import constants
+from telegram import constants, helpers
 from telegram.ext import (ApplicationBuilder, CallbackContext, CommandHandler,
                           MessageHandler, filters)
 
@@ -127,8 +127,8 @@ class TooGoodToGoTelegram:
     def randMultiplier(self):
         return 1 + random.randint(-100, 100)/1000
 
-    async def send_pinned_message(self, context, chat_id, text):
-        message = await context.bot.send_message(chat_id=chat_id, text=text)
+    async def send_pinned_message(self, context, chat_id, text, parse_mode=None):
+        message = await context.bot.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode, disable_web_page_preview=True)
         await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id, disable_notification=False)
 
     async def exceedQuota(self, user, context, update):
@@ -157,10 +157,10 @@ class TooGoodToGoTelegram:
                         display_name = value.get('display_name')
                         purchase_end = value.get("purchase_end")
                         if user.seen.get(display_name, None) != purchase_end:
-                            text += f"👉🏻 [{display_name}](https://share.toogoodtogo.com/item/{key}/) (available: {available})\n"
+                            text += f"👉🏻 <a href=\"https://share.toogoodtogo.com/item/{key}/\">{display_name} </a>(available: {available})\n"
                             user.seen[display_name] = purchase_end
                     if text:
-                        await self.send_pinned_message(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.MARKDOWN_V2)
+                        await self.send_pinned_message(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML)
             except TgtgConnectionError as error:
                 await self.handleError(error, user, update, context)
                 pass
