@@ -6,11 +6,12 @@ import random
 import shutil
 
 from telegram import Bot, Update
+from telegram import constants
 from telegram.ext import (ApplicationBuilder, CallbackContext, CommandHandler,
                           MessageHandler, filters)
 
-from .api import TooGoodToGoApi
-from .exceptions import (TgtgConnectionError, TgtgForbiddenError,
+from api import TooGoodToGoApi
+from exceptions import (TgtgConnectionError, TgtgForbiddenError,
                          TgtgLoggedOutError, TgtgUnauthorizedError)
 
 MAX_REQUESTS = 10000
@@ -156,10 +157,10 @@ class TooGoodToGoTelegram:
                         display_name = value.get('display_name')
                         purchase_end = value.get("purchase_end")
                         if user.seen.get(display_name, None) != purchase_end:
-                            text += f"👉🏻 {display_name} (available: {available})\n"
+                            text += f"👉🏻 [{display_name}](https://share.toogoodtogo.com/item/{key}/) (available: {available})\n"
                             user.seen[display_name] = purchase_end
                     if text:
-                        await self.send_pinned_message(context=context, chat_id=user.chat_id, text=text)
+                        await self.send_pinned_message(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.MARKDOWN_V2)
             except TgtgConnectionError as error:
                 await self.handleError(error, user, update, context)
                 pass

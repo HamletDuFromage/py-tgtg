@@ -4,8 +4,8 @@ import time
 
 import api
 
-from .exceptions import (TgtgConnectionError, TgtgForbiddenError,
-                         TgtgLoggedOutError, TgtgUnauthorizedError)
+from exceptions import (TgtgConnectionError, TgtgForbiddenError,
+                        TgtgLoggedOutError, TgtgUnauthorizedError)
 
 
 class TooGoodToGoWatcher:
