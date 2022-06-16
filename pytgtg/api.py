@@ -1,8 +1,12 @@
 
 import json
-import httpx
 import random
-from .exceptions import TgtgConnectionError, TgtgForbiddenError, TgtgLoggedOutError, TgtgUnauthorizedError, TgtgOrderError
+
+import httpx
+
+from .exceptions import (TgtgConnectionError, TgtgForbiddenError,
+                         TgtgLoggedOutError, TgtgOrderError,
+                         TgtgUnauthorizedError)
 
 
 class TooGoodToGoApi:

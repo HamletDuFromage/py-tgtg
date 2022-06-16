@@ -4,13 +4,14 @@ import os
 import pathlib
 import random
 import shutil
-import sys
 
 from telegram import Bot, Update
-from telegram.ext import (ApplicationBuilder, CallbackContext, CommandHandler, MessageHandler, filters)
+from telegram.ext import (ApplicationBuilder, CallbackContext, CommandHandler,
+                          MessageHandler, filters)
 
 from .api import TooGoodToGoApi
-from .exceptions import (TgtgConnectionError, TgtgForbiddenError, TgtgLoggedOutError, TgtgUnauthorizedError)
+from .exceptions import (TgtgConnectionError, TgtgForbiddenError,
+                         TgtgLoggedOutError, TgtgUnauthorizedError)
 
 MAX_REQUESTS = 10000
 MAX_REQUESTS_PHOTO_ID = "AgACAgQAAxkDAAIE_WKTbr9hZFdYN9atFpB_inbKLJBcAAJVrjEbvMucUN6ucAsMN1bdAQADAgADcwADJAQ"
@@ -19,9 +20,6 @@ MAX_FAILED_REQUESTS = 3
 DEFAULT_WATCH_INTERVAL = 15.0
 
 PATH = pathlib.Path(__file__).parent.resolve()
-
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO, filename="telegrambot.log")
 
 
 class User:
@@ -88,6 +86,9 @@ class User:
 
 class TooGoodToGoTelegram:
     def __init__(self, TOKEN):
+        self.LOGS = "telegrambot.log"
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            level=logging.INFO, filename=self.LOGS)
         self.TOKEN = TOKEN
 
         self.application = ApplicationBuilder().token(TOKEN).build()
