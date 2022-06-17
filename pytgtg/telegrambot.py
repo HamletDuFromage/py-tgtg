@@ -145,6 +145,9 @@ class TooGoodToGoTelegram:
         return update.effective_chat.type == "private" or \
             update.effective_user in [admin.user for admin in await update.effective_chat.get_administrators()]
 
+    def createHyperlink(self, link, text):
+        return f"<a href=\"{link}\">{text}</a>"
+
     async def watchLoop(self, update, context):
         user = self.getUser(update)
         while user.watching and not await self.exceedQuota(user, context, update):
@@ -157,7 +160,7 @@ class TooGoodToGoTelegram:
                         display_name = value.get('display_name')
                         purchase_end = value.get("purchase_end")
                         if user.seen.get(display_name, None) != purchase_end:
-                            text += f"👉🏻 <a href=\"https://share.toogoodtogo.com/item/{key}/\">{display_name} </a>(available: {available})\n"
+                            text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)}(available: {available})\n"
                             user.seen[display_name] = purchase_end
                     if text:
                         await self.send_pinned_message(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML)
