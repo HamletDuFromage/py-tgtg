@@ -95,7 +95,7 @@ class TooGoodToGoTelegram:
         self.application = ApplicationBuilder().token(TOKEN).build()
 
         self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
-                         self.login_continue: "Confirm login request", self.add_target: "Add an item to watch/purchase", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
+                         self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.status: "Show the bot's status",
                          self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
                          self.error: "See common errors", self.start: "Welcome"}
@@ -187,7 +187,7 @@ class TooGoodToGoTelegram:
 
     async def stop_watching(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
-        await context.bot.send_message(chat_id=user.chat_id, text="Stopped watching (and purchasing) the favorites.")
+        await context.bot.send_message(chat_id=user.chat_id, text="Stopped watching the favorites.")
         user.stopWatching()
 
     async def add_target(self, update: Update, context: CallbackContext):
@@ -266,7 +266,7 @@ class TooGoodToGoTelegram:
     async def refresh(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
-            refresh = user.api.login()
+            user.api.login()
             await context.bot.send_message(chat_id=user.chat_id, text=f"Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
             await self.handleError(error, user, update, context)
