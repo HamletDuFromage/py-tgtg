@@ -12,7 +12,7 @@ from telegram.ext import (ApplicationBuilder, CallbackContext, CommandHandler,
 
 from api import TooGoodToGoApi
 from exceptions import (TgtgConnectionError, TgtgForbiddenError,
-                         TgtgLoggedOutError, TgtgUnauthorizedError)
+                        TgtgLoggedOutError, TgtgUnauthorizedError)
 
 MAX_REQUESTS = 10000
 MAX_REQUESTS_PHOTO_ID = "AgACAgQAAxkDAAIE_WKTbr9hZFdYN9atFpB_inbKLJBcAAJVrjEbvMucUN6ucAsMN1bdAQADAgADcwADJAQ"
@@ -160,7 +160,7 @@ class TooGoodToGoTelegram:
                         display_name = value.get('display_name')
                         purchase_end = value.get("purchase_end")
                         if user.seen.get(display_name, None) != purchase_end:
-                            text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)}(available: {available})\n"
+                            text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} (available: {available})\n"
                             user.seen[display_name] = purchase_end
                     if text:
                         await self.send_pinned_message(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML)
