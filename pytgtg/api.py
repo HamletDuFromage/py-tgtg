@@ -80,7 +80,6 @@ class TooGoodToGoApi:
         return self.config.get("api").get("credentials")
 
     def refreshToken(self):
-        self.client = httpx.Client(cookies=httpx.Cookies(), params=self.config.get("api").get("params"))
         session = self.getSession()
         json = {"refresh_token": session.get("refreshToken")}
         res = self.post("auth/v3/token/refresh", json=json)

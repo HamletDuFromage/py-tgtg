@@ -54,7 +54,6 @@ class User:
         except AttributeError:
             pass
         self.seen = {}
-        self.api.newClient(use_proxy=False)
 
     def shouldWatch(self):
         return True
