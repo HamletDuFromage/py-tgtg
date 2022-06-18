@@ -1,6 +1,4 @@
-import httpx
-
-class TgtgConnectionError(httpx.NetworkError):
+class TgtgConnectionError(Exception):
     pass
 
 class TgtgUnauthorizedError(TgtgConnectionError):

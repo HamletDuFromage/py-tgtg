@@ -1,8 +1,8 @@
 
-import json
 import random
 
 import httpx
+import socksio
 
 from exceptions import (TgtgConnectionError, TgtgForbiddenError,
                         TgtgLoggedOutError, TgtgOrderError,
@@ -34,16 +34,19 @@ class TooGoodToGoApi:
 
     def post(self, endpoint, json={}, headers={}):
         self.requests_count += 1
-        post = self.client.post(self.url(endpoint), json=json, headers={**headers, **self.getHeaders()})
+        try:
+            post = self.client.post(self.url(endpoint), json=json, headers={**headers, **self.getHeaders()})
+        except (socksio.exceptions.ProtocolError, httpx.RequestError) as error:
+            raise TgtgConnectionError(repr(error))
         if not post.is_success:
             self.failed_requests += 1
-            error = f"Error {post.status_code} for post request {endpoint}"
+            message = f"Error {post.status_code} for post request {endpoint}"
             if post.status_code == 401:
-                raise TgtgUnauthorizedError(error)
+                raise TgtgUnauthorizedError(message)
             elif post.status_code == 403:
-                raise TgtgForbiddenError(error)
+                raise TgtgForbiddenError(message)
             else:
-                raise TgtgConnectionError(error)
+                raise TgtgConnectionError(message)
         self.failed_requests = 0
         return post
 
