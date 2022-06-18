@@ -29,6 +29,7 @@ class TooGoodToGoApi:
         return f"{self.baseurl}{endpoint}"
 
     def newClient(self, use_proxy=False):
+        self.proxy = ""
         self.client = httpx.Client(cookies=httpx.Cookies(), params=self.config.get("api").get("params"))
 
     def post(self, endpoint, json={}, headers={}):
