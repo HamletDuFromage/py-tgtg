@@ -28,14 +28,8 @@ class TooGoodToGoApi:
     def url(self, endpoint):
         return f"{self.baseurl}{endpoint}"
 
-    def newClient(self, proxy=""):
-        try:
-            self.client = httpx.Client(
-                cookies=httpx.Cookies(),
-                params=self.config.get("api").get("params"),
-                proxies=proxy)
-        except ValueError:
-            self.client = httpx.Client(cookies=httpx.Cookies(), params=self.config.get("api").get("params"))
+    def newClient(self, use_proxy=False):
+        self.client = httpx.Client(cookies=httpx.Cookies(), params=self.config.get("api").get("params"))
 
     def post(self, endpoint, json={}, headers={}):
         self.requests_count += 1
