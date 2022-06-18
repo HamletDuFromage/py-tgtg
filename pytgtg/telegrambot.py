@@ -181,11 +181,11 @@ class TooGoodToGoTelegram:
         except ValueError:
             await context.bot.send_message(chat_id=user.chat_id, text="Usage:\n/watch [sec].")
             return
+        await context.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshing the favorites with an interval of {user.watch_interval} seconds.\nStop watching by typing /stop_watching.")
+        await self.show_targets(update, context)
         user.watching = True
         if user.watcher is None or user.watcher.done():
             user.watcher = asyncio.ensure_future(self.watchLoop(update, context))
-        await context.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshing the favorites with an interval of {user.watch_interval} seconds.\nStop watching by typing /stop_watching.")
-        await self.show_targets(update, context)
 
     async def stop_watching(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
