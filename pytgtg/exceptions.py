@@ -12,3 +12,6 @@ class TgtgLoggedOutError(TgtgConnectionError):
 
 class TgtgOrderError(TgtgConnectionError):
     pass
+
+class TgtgRequestError(TgtgConnectionError):
+    pass
