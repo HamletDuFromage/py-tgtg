@@ -135,9 +135,11 @@ class TooGoodToGoTelegram:
         if user.api.requests_count >= MAX_REQUESTS:
             await context.bot.send_photo(chat_id=user.chat_id, photo=MAX_REQUESTS_PHOTO_ID, caption=f"You've sent too many requests (more than {MAX_REQUESTS}). Stopping for now.")
             await self.refresh(update, context)
+            user.api.requests_count = 0
             return True
         if user.api.failed_requests >= MAX_FAILED_REQUESTS:
             await context.bot.send_photo(chat_id=user.chat_id, photo=MAX_REQUESTS_PHOTO_ID, caption=f"Too many requests have failed (more than {MAX_FAILED_REQUESTS}). Stopping for now.")
+            user.api.failed_requests = 0
             return True
         return False
 
