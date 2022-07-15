@@ -61,10 +61,12 @@ class User:
     def clearHistory(self):
         self.seen = {}
 
-    def matchesDesired(self, s, l):
-        for e in l:
-            if e.lower() in s.lower():
-                return e
+    def matchesDesired(self, name, targets):
+        if "*" in targets:
+            return True
+        for target in targets:
+            if target.lower() in name.lower():
+                return True
         return False
 
     def getMatches(self, targets):
@@ -78,7 +80,6 @@ class User:
                 match = self.matchesDesired(item.get("display_name"), targets.keys())
                 if match:
                     res[item.get("item").get("item_id")] = {"display_name": item.get("display_name"),
-                                                            "keyword": match,
                                                             "quantity": targets.get(match),
                                                             "available": available,
                                                             "purchase_end": item.get("purchase_end", None)}
@@ -205,7 +206,7 @@ class TooGoodToGoTelegram:
                 text = f"Removed {keyword} from targets."
             user.api.saveConfig()
         except (IndexError, ValueError):
-            text = "Usage:\n/add_target [keyword] [quantity]"
+            text = "Usage:\n/add_target [keyword] [quantity]\nWatch all the favorites with /add_target * [quantity]"
         except KeyError:
             text = f"Can't remove \"{keyword}\" since it isn't being targeted."
         await context.bot.send_message(chat_id=user.chat_id, text=text)
