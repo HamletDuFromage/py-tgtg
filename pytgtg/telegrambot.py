@@ -63,10 +63,10 @@ class User:
 
     def matchesDesired(self, name, targets):
         if "*" in targets:
-            return True
+            return "*"
         for target in targets:
             if target.lower() in name.lower():
-                return True
+                return target
         return False
 
     def getMatches(self, targets):
@@ -171,7 +171,7 @@ class TooGoodToGoTelegram:
                 await self.handleError(error, user, update, context)
                 pass
             await asyncio.sleep(user.watch_interval * self.randMultiplier())
-        user.stopWatching()
+        await self.stop_watching(update, context)
 
     async def watch(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
