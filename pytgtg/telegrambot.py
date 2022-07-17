@@ -61,6 +61,18 @@ class User:
     def clearHistory(self):
         self.seen = {}
 
+    def getPrice(self, item):
+        price = item.get('item').get('price_including_taxes')
+        res = f"{price.get('minor_units') / 10 ** price.get('decimals'):.2f}"
+        code = price.get("code")
+        if code == "EUR": #use match/case statement in the future
+            res += "€"
+        elif code == "USD":
+            res = f"${res}"
+        else:
+            res += code
+        return res
+
     def matchesDesired(self, name, targets):
         if "*" in targets:
             return "*"
@@ -82,7 +94,8 @@ class User:
                     res[item.get("item").get("item_id")] = {"display_name": item.get("display_name"),
                                                             "quantity": targets.get(match),
                                                             "available": available,
-                                                            "purchase_end": item.get("purchase_end", None)}
+                                                            "purchase_end": item.get("purchase_end", None),
+                                                            "price": self.getPrice(item)}
         return res
 
 
@@ -163,7 +176,7 @@ class TooGoodToGoTelegram:
                         display_name = value.get('display_name')
                         purchase_end = value.get("purchase_end")
                         if user.seen.get(display_name, None) != purchase_end:
-                            text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} (available: {available})\n"
+                            text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} - {value.get('price')} (avail: {available})\n"
                             user.seen[display_name] = purchase_end
                     if text:
                         await self.send_pinned_message(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML)
