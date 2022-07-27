@@ -40,6 +40,7 @@ class User:
         self.api = TooGoodToGoApi(self.config_fname)
         self.api.config.setdefault("targets", {})
         self.targets = self.api.config.get("targets")
+        self.pinning = True
         logging.info(f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id}")
 
     def createConfig(self, f_name):
@@ -65,7 +66,7 @@ class User:
         price = item.get('item').get('price_including_taxes')
         res = f"{price.get('minor_units') / 10 ** price.get('decimals'):.2f}"
         code = price.get("code")
-        if code == "EUR": #use match/case statement in the future
+        if code == "EUR":  # use match/case statement in the future
             res += "€"
         elif code == "USD":
             res = f"${res}"
@@ -110,8 +111,8 @@ class TooGoodToGoTelegram:
 
         self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
                          self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
-                         self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.status: "Show the bot's status",
-                         self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
+                         self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.pin_results: "Pin messages about available Magic Bags",
+                         self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
                          self.error: "See common errors", self.start: "Welcome"}
         self.users = {}
 
@@ -141,9 +142,10 @@ class TooGoodToGoTelegram:
     def randMultiplier(self):
         return 1 + random.randint(-100, 100)/1000
 
-    async def send_pinned_message(self, context, chat_id, text, parse_mode=None):
+    async def sendPinnedMessage(self, context, chat_id, text, parse_mode=None, pinned=True):
         message = await context.bot.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode, disable_web_page_preview=True)
-        await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id, disable_notification=False)
+        if pinned:
+            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id, disable_notification=False)
 
     async def exceedQuota(self, user, context, update):
         if user.api.requests_count >= MAX_REQUESTS:
@@ -179,7 +181,7 @@ class TooGoodToGoTelegram:
                             text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} - {value.get('price')} (avail: {available})\n"
                             user.seen[display_name] = purchase_end
                     if text:
-                        await self.send_pinned_message(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML)
+                        await self.sendPinnedMessage(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, pinned=user.pinning)
             except TgtgConnectionError as error:
                 await self.handleError(error, user, update, context)
                 pass
@@ -241,6 +243,15 @@ class TooGoodToGoTelegram:
         user = self.getUser(update)
         text = "Targeting the following items:\n" + "\n".join(
             (f"📌 {key} (qty: {value})" for key, value in user.targets.items()))
+        await context.bot.send_message(chat_id=user.chat_id, text=text)
+
+    async def pin_results(self, update: Update, context: CallbackContext):
+        user = self.getUser(update)
+        try:
+            user.pinning = context.args[0] != "0"
+            text = f"Now pinning results: {user.pinning}"
+        except (IndexError, ValueError):
+            text = "Usage:\n/pin_results [0-1]"
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
     async def status(self, update: Update, context: CallbackContext):
