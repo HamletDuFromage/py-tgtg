@@ -89,14 +89,17 @@ class User:
         businesses = self.api.listFavoriteBusinesses().json()
         for item in businesses.get("items"):
             available = item.get("items_available", 0)
+            display_name = item.get("display_name")
             if available > 0:
-                match = self.matchesDesired(item.get("display_name"), targets.keys())
+                match = self.matchesDesired(display_name, targets.keys())
                 if match:
-                    res[item.get("item").get("item_id")] = {"display_name": item.get("display_name"),
+                    res[item.get("item").get("item_id")] = {"display_name": display_name,
                                                             "quantity": targets.get(match),
                                                             "available": available,
                                                             "purchase_end": item.get("purchase_end", None),
                                                             "price": self.getPrice(item)}
+            elif display_name in self.seen:
+                self.seen.pop(display_name)  # remove item from seen list in case of a future restock
         return res
 
 
