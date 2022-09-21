@@ -201,6 +201,7 @@ class TooGoodToGoTelegram:
         await self.stop_watching(update, context)
 
     async def dry_run(self, update, context):
+        await self.show_targets(update, context)
         user = self.getUser(update)
         try:
             text = ""
