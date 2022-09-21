@@ -3,6 +3,7 @@ import logging
 import os
 import pathlib
 import random
+import re
 import shutil
 
 from telegram import Bot, Update
@@ -74,15 +75,23 @@ class User:
             res += code
         return res
 
-    def matchesDesired(self, name, targets):
+    def matchesDesired(self, display_name, targets):
         if "*" in targets:
             return "*"
         for target in targets:
-            if target.lower() in name.lower():
+            try:
+                description = re.search(r".+\((.+)\)+$", target).group(1)
+                target = target[:-len(description) - 2]
+            except AttributeError:
+                description = ""
+            target = target.lower().replace('_', ' ')
+            description = description.lower().replace('_', ' ')
+            display_name = display_name.lower()
+            if target in display_name and description in display_name:
                 return target
         return False
 
-    def getMatches(self, targets):
+    def getMatches(self, targets, minQty = 1):
         res = {}
         if targets == {}:
             return res
@@ -90,7 +99,7 @@ class User:
         for item in businesses.get("items"):
             available = item.get("items_available", 0)
             display_name = item.get("display_name")
-            if available > 0:
+            if available >= minQty:
                 match = self.matchesDesired(display_name, targets.keys())
                 if match:
                     res[item.get("item").get("item_id")] = {"display_name": display_name,
@@ -114,7 +123,7 @@ class TooGoodToGoTelegram:
 
         self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
                          self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
-                         self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.pin_results: "Pin messages about available Magic Bags",
+                         self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets" ,self.pin_results: "Pin messages about available Magic Bags",
                          self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
                          self.error: "See common errors", self.start: "Welcome"}
         self.users = {}
@@ -191,6 +200,22 @@ class TooGoodToGoTelegram:
             await asyncio.sleep(user.watch_interval * self.randMultiplier())
         await self.stop_watching(update, context)
 
+    async def dry_run(self, update, context):
+        user = self.getUser(update)
+        try:
+            text = ""
+            matches = user.getMatches(user.targets, minQty=0)
+            for key, value in matches.items():
+                available = value.get("available")
+                display_name = value.get('display_name')
+                text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} - {value.get('price')} (avail: {available})\n"
+            if text:
+                await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
+            else:
+                await context.bot.send_message(chat_id=user.chat_id, text="No magic matches targets.")
+        except TgtgConnectionError as error:
+            await self.handleError(error, user, update, context)
+
     async def watch(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
@@ -224,7 +249,7 @@ class TooGoodToGoTelegram:
                 text = f"Removed {keyword} from targets."
             user.api.saveConfig()
         except (IndexError, ValueError):
-            text = "Usage:\n/add_target [keyword] [quantity]\nWatch all the favorites with /add_target * [quantity]"
+            text = "Usage:\n/add_target [keyword_for_store] [quantity]\nFilter specific Magic Bags with /add_target [keyword_for_store(keyword_for_bag)] [quantity]\nWatch all the favorites with /add_target * [quantity]"
         except KeyError:
             text = f"Can't remove \"{keyword}\" since it isn't being targeted."
         await context.bot.send_message(chat_id=user.chat_id, text=text)
