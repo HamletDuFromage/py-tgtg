@@ -1,4 +1,6 @@
 import asyncio
+import datetime
+from dateutil import parser
 import logging
 import os
 import pathlib
@@ -105,7 +107,8 @@ class User:
                     res[item.get("item").get("item_id")] = {"display_name": display_name,
                                                             "quantity": targets.get(match),
                                                             "available": available,
-                                                            "purchase_end": item.get("purchase_end", None),
+                                                            "purchase_end": item.get("purchase_end"),
+                                                            "pickup_interval": item.get("pickup_interval"),
                                                             "price": self.getPrice(item)}
             elif display_name in self.seen:
                 self.seen.pop(display_name)  # remove item from seen list in case of a future restock
@@ -153,6 +156,12 @@ class TooGoodToGoTelegram:
 
     def randMultiplier(self):
         return 1 + random.randint(-100, 100)/1000
+
+    def calculatePickupInterval(self, pickup_interval):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        start_delta = parser.parse(pickup_interval["start"]) - now
+        end_delta = parser.parse(pickup_interval["end"]) - now
+        return (f"{start_delta.seconds//3600} hours and {(start_delta.seconds//60)%60} minutes", f"{end_delta.seconds//3600} hours and {(end_delta.seconds//60)%60} minutes")
 
     async def sendPinnedMessage(self, context, chat_id, text, parse_mode=None, pinned=True):
         message = await context.bot.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode, disable_web_page_preview=True)
