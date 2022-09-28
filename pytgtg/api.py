@@ -16,9 +16,10 @@ class TooGoodToGoApi:
         self.config = self.loadConfig()
         self.config["origin"] = self.randomizeLocation(self.config.get("origin"))
         self.baseurl = "https://apptoogoodtogo.com/api/"
-        self.newClient()
         self.requests_count = 0
         self.failed_requests = 0
+        self.proxy = ""
+        self.newClient()
 
     def randomizeLocation(self, origin):
         var = 1 + random.randint(-100, 100)/1000
@@ -30,7 +31,6 @@ class TooGoodToGoApi:
         return f"{self.baseurl}{endpoint}"
 
     def newClient(self, use_proxy=False):
-        self.proxy = ""
         self.client = httpx.Client(cookies=httpx.Cookies(), params=self.config.get("api").get("params"))
 
     def post(self, endpoint, json={}, headers={}):

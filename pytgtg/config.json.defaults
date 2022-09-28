@@ -6,7 +6,7 @@
         "session": {},
         "deviceType": "IOS",
         "headers": {
-            "User-Agent": "TooGoodToGo/21.9.0 (813) (iPhone/iPhone 7 (GSM); iOS 15.1; Scale/2.00)",
+            "User-Agent": "TooGoodToGo/21.9.3 (541) (iPhone/iPhone 7 (GSM); iOS 15.1; Scale/2.00)",
             "Content-Type": "application/json",
             "Accept": "",
             "Accept-Language": "en-US",
