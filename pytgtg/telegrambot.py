@@ -81,15 +81,14 @@ class User:
         if "*" in targets:
             return "*"
         for target in targets:
+            store = target.lower().replace('_', ' ')
             try:
-                description = re.search(r".+\((.+)\)+$", target).group(1)
-                target = target[:-len(description) - 2]
+                description = re.search(r".+\((.+)\)+$", store).group(1)
+                store = store[:-len(description) - 2]
             except AttributeError:
                 description = ""
-            target = target.lower().replace('_', ' ')
-            description = description.lower().replace('_', ' ')
             display_name = display_name.lower()
-            if target in display_name and description in display_name:
+            if store in display_name and description in display_name:
                 return target
         return False
 
