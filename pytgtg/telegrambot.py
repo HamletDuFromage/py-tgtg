@@ -189,6 +189,7 @@ class TooGoodToGoTelegram:
     async def watchLoop(self, update, context):
         user = self.getUser(update)
         while user.watching and not await self.exceedQuota(user, context, update):
+            start = datetime.datetime.now()
             try:
                 if user.shouldWatch():
                     text = ""
@@ -205,7 +206,8 @@ class TooGoodToGoTelegram:
             except TgtgConnectionError as error:
                 await self.handleError(error, user, update, context)
                 pass
-            await asyncio.sleep(user.watch_interval * self.randMultiplier())
+            sleep_time = max(user.watch_interval - (datetime.datetime.now() - start).total_seconds(), 0)
+            await asyncio.sleep(sleep_time * self.randMultiplier())
         await self.stop_watching(update, context)
 
     async def dry_run(self, update, context):
