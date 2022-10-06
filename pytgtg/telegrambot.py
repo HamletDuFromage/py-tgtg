@@ -205,7 +205,6 @@ class TooGoodToGoTelegram:
                         await self.sendPinnedMessage(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, pinned=user.pinning)
             except TgtgConnectionError as error:
                 await self.handleError(error, user, update, context)
-                pass
             sleep_time = max(user.watch_interval - (datetime.datetime.now() - start).total_seconds(), 0)
             await asyncio.sleep(sleep_time * self.randMultiplier())
         await self.stop_watching(update, context)
