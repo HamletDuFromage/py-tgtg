@@ -17,7 +17,7 @@ from api import TooGoodToGoApi
 from exceptions import (TgtgConnectionError, TgtgForbiddenError,
                         TgtgLoggedOutError, TgtgUnauthorizedError)
 
-MAX_REQUESTS = 10000
+MAX_REQUESTS = 1_000_000
 MAX_REQUESTS_PHOTO_ID = "AgACAgQAAxkDAAIE_WKTbr9hZFdYN9atFpB_inbKLJBcAAJVrjEbvMucUN6ucAsMN1bdAQADAgADcwADJAQ"
 MAX_FAILED_REQUESTS = 3
 
