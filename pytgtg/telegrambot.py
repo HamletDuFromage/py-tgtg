@@ -44,7 +44,7 @@ class User:
         self.api.config.setdefault("targets", {})
         self.targets = self.api.config.get("targets")
         self.pinning = True
-        logging.info(f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id}")
+        logging.warn(f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id}")
 
     def createConfig(self, f_name):
         if not os.path.exists(f_name):
@@ -92,7 +92,7 @@ class User:
                 return target
         return False
 
-    def getMatches(self, targets, minQty = 1):
+    def getMatches(self, targets, minQty=1):
         res = {}
         if targets == {}:
             return res
@@ -125,7 +125,7 @@ class TooGoodToGoTelegram:
 
         self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
                          self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
-                         self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets" ,self.pin_results: "Pin messages about available Magic Bags",
+                         self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
                          self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
                          self.error: "See common errors", self.start: "Welcome"}
         self.users = {}
@@ -135,9 +135,9 @@ class TooGoodToGoTelegram:
         self.application.run_polling()
 
     def handleHandlers(self):
+        self.application.add_handler(MessageHandler(filters.COMMAND, self.default_command_handler), group=0)
         for func in self.commands.keys():
-            self.application.add_handler(CommandHandler(func.__name__, func))
-        self.application.add_handler(MessageHandler(filters.COMMAND, self.wrong_command))
+            self.application.add_handler(CommandHandler(func.__name__, func), group=1)
 
     def getUser(self, update):
         chat_id = update.effective_chat.id
@@ -353,7 +353,8 @@ class TooGoodToGoTelegram:
     async def error(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ Common errors and possible diagnosis:\n- 403: Bot's IP is temporally banned.\n- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login.")
 
-    async def wrong_command(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+    async def default_command_handler(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+        logging.info(f"`{update.message.text}` --- chat:{update.effective_chat.id} | {update.effective_user.first_name}: {update.effective_user.id}")
         await context.bot.send_message(chat_id=update.effective_chat.id, text="🤔 Invalid command.\nType /help for help.")
 
     async def setCommands(self):
