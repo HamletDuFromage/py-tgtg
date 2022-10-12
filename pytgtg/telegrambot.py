@@ -135,9 +135,9 @@ class TooGoodToGoTelegram:
         self.application.run_polling()
 
     def handleHandlers(self):
-        self.application.add_handler(MessageHandler(filters.COMMAND, self.default_command_handler), group=0)
         for func in self.commands.keys():
-            self.application.add_handler(CommandHandler(func.__name__, func), group=1)
+            self.application.add_handler(CommandHandler(func.__name__, func), group=0)
+        self.application.add_handler(MessageHandler(filters.COMMAND, self.default_command_handler), group=1)
 
     def getUser(self, update):
         chat_id = update.effective_chat.id
@@ -355,7 +355,8 @@ class TooGoodToGoTelegram:
 
     async def default_command_handler(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
         logging.info(f"`{update.message.text}` --- chat:{update.effective_chat.id} | {update.effective_user.first_name}: {update.effective_user.id}")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="🤔 Invalid command.\nType /help for help.")
+        if update.message.text.split(" ")[0] not in ['/' + f.__name__ for f in self.commands.keys()]:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="🤔 Invalid command.\nType /help for help.")
 
     async def setCommands(self):
         init = Bot(self.TOKEN)
