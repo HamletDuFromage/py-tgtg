@@ -137,7 +137,8 @@ class TooGoodToGoTelegram:
     def handleHandlers(self):
         for func in self.commands.keys():
             self.application.add_handler(CommandHandler(func.__name__, func), group=0)
-        self.application.add_handler(MessageHandler(filters.COMMAND, self.default_command_handler), group=1)
+        self.application.add_handler(MessageHandler(filters.COMMAND, self.wrong_command), group=0)
+        self.application.add_handler(MessageHandler(filters.COMMAND, self.command_logger), group=1)
 
     def getUser(self, update):
         chat_id = update.effective_chat.id
@@ -353,10 +354,11 @@ class TooGoodToGoTelegram:
     async def error(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ Common errors and possible diagnosis:\n- 403: Bot's IP is temporally banned.\n- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login.")
 
-    async def default_command_handler(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+    async def wrong_command(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="🤔 Invalid command.\nType /help for help.")
+
+    async def command_logger(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
         logging.info(f"`{update.message.text}` --- chat:{update.effective_chat.id} | {update.effective_user.first_name}: {update.effective_user.id}")
-        if update.message.text.split(" ")[0] not in ['/' + f.__name__ for f in self.commands.keys()]:
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="🤔 Invalid command.\nType /help for help.")
 
     async def setCommands(self):
         init = Bot(self.TOKEN)
