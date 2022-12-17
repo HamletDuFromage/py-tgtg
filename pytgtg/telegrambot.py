@@ -39,7 +39,6 @@ class User:
         self.watching = False
         self.watcher = None
         self.seen = {}
-        self.failed_requests = 0
         self.api = TooGoodToGoApi(self.config_fname)
         self.api.config.setdefault("targets", {})
         self.targets = self.api.config.get("targets")
@@ -240,7 +239,7 @@ class TooGoodToGoTelegram:
         await self.show_targets(update, context)
         user.watching = True
         if user.watcher is None or user.watcher.done():
-            user.watcher = asyncio.ensure_future(self.watchLoop(update, context))
+            user.watcher = asyncio.create_task(self.watchLoop(update, context))
 
     async def stop_watching(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
