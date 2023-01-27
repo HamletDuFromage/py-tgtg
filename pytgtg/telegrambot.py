@@ -152,6 +152,8 @@ class TooGoodToGoTelegram:
         await context.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
         if type(error) == TgtgUnauthorizedError:
             await self.refresh(update, context)
+        elif type(error) == TgtgForbiddenError:
+            await self.refresh(update, context)
 
     def randMultiplier(self):
         return 1 + random.randint(-100, 100)/1000
