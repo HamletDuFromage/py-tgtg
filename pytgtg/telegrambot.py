@@ -153,7 +153,7 @@ class TooGoodToGoTelegram:
         if type(error) == TgtgUnauthorizedError:
             await self.refresh(update, context)
         elif type(error) == TgtgForbiddenError:
-            await self.refresh(update, context)
+            user.api.newClient()
 
     def randMultiplier(self):
         return 1 + random.randint(-100, 100)/1000
