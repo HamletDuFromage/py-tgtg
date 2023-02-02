@@ -4,13 +4,14 @@
             "email": "anon@domain.tld"
         },
         "session": {},
-        "deviceType": "IOS",
+        "deviceType": "ANDROID",
         "headers": {
-            "User-Agent": "TooGoodToGo/21.9.3 (541) (iPhone/iPhone 7 (GSM); iOS 15.1; Scale/2.00)",
-            "Content-Type": "application/json",
-            "Accept": "",
-            "Accept-Language": "en-US",
-            "Accept-Encoding": "gzip"
+            "user-agent": "TGTG/23.1.11 Dalvik/2.1.0 (Linux; U; Android 9; Nexus 5 Build/M4B30Z)",
+            "content-type": "application/json; charset=utf-8",
+            "accept": "application/json",
+            "accept-language": "en-US",
+            "host": "apptoogoodtogo.com"
+            "accept-encoding": "gzip"
         },
         "params": {
             "responseType": "json",
