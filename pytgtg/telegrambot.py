@@ -31,6 +31,7 @@ class User:
         self.chat_id = update.effective_chat.id
         self.type = update.effective_chat.type
         self.user_id = update.effective_user.id
+        self.username = update.effective_user.username
         self.name = update.effective_user.first_name
         self.config_fname = f"config_{self.chat_id}.json"
         self.createConfig(self.config_fname)
@@ -41,6 +42,8 @@ class User:
         self.seen = {}
         self.api = TooGoodToGoApi(self.config_fname)
         self.api.config.setdefault("targets", {})
+        if self.username:
+            self.api.config.setdefault("telegram_username", self.username)
         self.targets = self.api.config.get("targets")
         self.pinning = True
         logging.warn(f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id}")
