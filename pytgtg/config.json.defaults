@@ -10,7 +10,7 @@
             "content-type": "application/json; charset=utf-8",
             "accept": "application/json",
             "accept-language": "en-US",
-            "host": "apptoogoodtogo.com"
+            "host": "apptoogoodtogo.com",
             "accept-encoding": "gzip"
         },
         "params": {
