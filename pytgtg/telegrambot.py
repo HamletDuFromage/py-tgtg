@@ -46,7 +46,7 @@ class User:
             self.api.config.setdefault("telegram_username", self.username)
         self.targets = self.api.config.get("targets")
         self.pinning = True
-        logging.warn(f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id}")
+        logging.warn(f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id} | username: {self.username}")
 
     def createConfig(self, f_name):
         if not os.path.exists(f_name):
