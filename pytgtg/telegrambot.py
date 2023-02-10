@@ -129,7 +129,7 @@ class TooGoodToGoTelegram:
                          self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
                          self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
-                         self.error: "See common errors", self.start: "Welcome"}
+                         self.shutdown: "Shut your client down", self.error: "See common errors", self.start: "Welcome"}
         self.users = {}
 
     def runBot(self):
@@ -328,18 +328,28 @@ class TooGoodToGoTelegram:
         else:
             try:
                 user.api.authPoll(user.polling_id)
-                text = "✔️ Successfully logged in!"
+                text = "✅ Successfully logged in!"
             except TgtgConnectionError:
-                text = "❌ Failed to login."
+                text = "⛔ Failed to login."
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
     async def refresh(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
             user.api.login()
-            await context.bot.send_message(chat_id=user.chat_id, text=f"Refreshed the tokens.", disable_notification=True)
+            await context.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
             await self.handleError(error, user, update, context)
+
+    async def shutdown(self, update: Update, context: CallbackContext):
+        await self.stop_watching(update, context)
+        chat_id = update.effective_chat.id
+        try:
+            self.users.pop(chat_id)
+            text = "Shut your instance of the TooGoodNotToBotClient down."
+        except KeyError:
+            text = "No instance of the TooGoodNotToBot is running."
+        await context.bot.send_message(chat_id=chat_id, text=text)
 
     async def clear_history(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
