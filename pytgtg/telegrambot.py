@@ -46,7 +46,8 @@ class User:
             self.api.config.setdefault("telegram_username", self.username)
         self.targets = self.api.config.get("targets")
         self.pinning = True
-        logging.warn(f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id} | username: {self.username}")
+        logging.warn(
+            f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id} | username: {self.username}")
 
     def createConfig(self, f_name):
         if not os.path.exists(f_name):
@@ -119,8 +120,10 @@ class User:
 class TooGoodToGoTelegram:
     def __init__(self, TOKEN):
         self.LOGS = "telegrambot.log"
-        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                            level=logging.INFO, filename=self.LOGS)
+        logging.basicConfig(handlers=[logging.StreamHandler(),
+                                      logging.FileHandler(self.LOGS)],
+                            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            level=logging.INFO)
         self.TOKEN = TOKEN
 
         self.application = ApplicationBuilder().token(TOKEN).build()
@@ -372,7 +375,8 @@ class TooGoodToGoTelegram:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="🤔 Invalid command.\nType /help for help.")
 
     async def command_logger(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
-        logging.info(f"`{update.message.text}` --- chat:{update.effective_chat.id} | {update.effective_user.first_name}: {update.effective_user.id}")
+        logging.info(
+            f"`{update.message.text}` --- chat:{update.effective_chat.id} | {update.effective_user.first_name}: {update.effective_user.id}")
 
     async def setCommands(self):
         init = Bot(self.TOKEN)
