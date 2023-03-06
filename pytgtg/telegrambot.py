@@ -134,6 +134,7 @@ class TooGoodToGoTelegram:
                          self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
                          self.shutdown: "Shut your client down", self.error: "See common errors", self.start: "Welcome"}
         self.users = {}
+        self.tz_conv = "https://hamletdufromage.github.io/unix-to-tz/?timestamp="
 
     def runBot(self):
         self.handleHandlers()
@@ -164,11 +165,23 @@ class TooGoodToGoTelegram:
     def randMultiplier(self):
         return 1 + random.randint(-100, 100)/1000
 
-    def calculatePickupInterval(self, pickup_interval):
+    def getUnixPickupInterval(self, pickup_interval):
+        start = int(datetime.datetime.timestamp(parser.parse(pickup_interval["start"])))
+        end = int(datetime.datetime.timestamp(parser.parse(pickup_interval["end"])))
+        return (start, end)
+
+    def calculateRelativePickupInterval(self, pickup_interval):
         now = datetime.datetime.now(datetime.timezone.utc)
-        start_delta = parser.parse(pickup_interval["start"]) - now
-        end_delta = parser.parse(pickup_interval["end"]) - now
+        zero_delta = datetime.timedelta(0) # don't want no negative deltas
+        start_delta = max(parser.parse(pickup_interval["start"]) - now, zero_delta)
+        end_delta = max(parser.parse(pickup_interval["end"]) - now, zero_delta)
         return (f"{start_delta.seconds//3600} hours and {(start_delta.seconds//60)%60} minutes", f"{end_delta.seconds//3600} hours and {(end_delta.seconds//60)%60} minutes")
+
+    def getUnixConversionLinks(self, pickup_interval):
+        unix_pickup = self.getUnixPickupInterval(pickup_interval)
+        relative_pickup = self.calculateRelativePickupInterval(pickup_interval)
+        return (self.createHyperlink(f"{self.tz_conv}{unix_pickup[0]}", relative_pickup[0]),
+                self.createHyperlink(f"{self.tz_conv}{unix_pickup[1]}", relative_pickup[1]))
 
     async def sendPinnedMessage(self, context, chat_id, text, parse_mode=None, pinned=True):
         message = await context.bot.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode, disable_web_page_preview=True)
