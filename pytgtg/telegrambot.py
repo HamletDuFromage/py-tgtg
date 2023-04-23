@@ -7,6 +7,11 @@ import pathlib
 import random
 import re
 import shutil
+import json
+
+import aiosmtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from telegram import Bot, Update
 from telegram import constants, helpers
@@ -40,18 +45,24 @@ class User:
         self.watching = False
         self.watcher = None
         self.seen = {}
-        self.api = TooGoodToGoApi(self.config_fname)
-        self.api.config.setdefault("targets", {})
-        if self.username:
-            self.api.config.setdefault("telegram_username", self.username)
-        self.targets = self.api.config.get("targets")
-        self.pinning = True
+        self.api = self.getApi(self.config_fname)
+        self.setConfigDefaults()
         logging.warn(
             f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id} | username: {self.username}")
+
+    def getApi(self, config_fname):
+        return TooGoodToGoApi(config_fname)
 
     def createConfig(self, f_name):
         if not os.path.exists(f_name):
             shutil.copy(f"{PATH}/config.json.defaults", f_name)
+
+    def setConfigDefaults(self):
+        self.api.config.setdefault("telegram_username", self.username)
+        self.targets = self.api.config.setdefault("targets", {})
+        self.api.config.setdefault("telegram_config", {"pinning": False,
+                                                       "email_notifications": None})
+        self.telegram_config = self.api.config.get("telegram_config")
 
     def stopWatching(self):
         self.watching = False
@@ -131,9 +142,14 @@ class TooGoodToGoTelegram:
         self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
                          self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
-                         self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
+                         self.notify_email: "Notify of matches by email", self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
                          self.shutdown: "Shut your client down", self.error: "See common errors", self.start: "Welcome"}
         self.users = {}
+        try:
+            with open("email_credentials.json", "r") as infile:
+                self.email_credentials = json.load(infile)
+        except (FileNotFoundError, ValueError):
+            self.email_credentials = {}
         self.tz_conv = "https://hamletdufromage.github.io/unix-to-tz/?timestamp="
 
     def runBot(self):
@@ -172,7 +188,7 @@ class TooGoodToGoTelegram:
 
     def calculateRelativePickupInterval(self, pickup_interval):
         now = datetime.datetime.now(datetime.timezone.utc)
-        zero_delta = datetime.timedelta(0) # don't want no negative deltas
+        zero_delta = datetime.timedelta(0)  # don't want no negative deltas
         start_delta = max(parser.parse(pickup_interval["start"]) - now, zero_delta)
         end_delta = max(parser.parse(pickup_interval["end"]) - now, zero_delta)
         return (f"{start_delta.seconds//3600} hours and {(start_delta.seconds//60)%60} minutes", f"{end_delta.seconds//3600} hours and {(end_delta.seconds//60)%60} minutes")
@@ -183,10 +199,12 @@ class TooGoodToGoTelegram:
         return (self.createHyperlink(f"{self.tz_conv}{unix_pickup[0]}", relative_pickup[0]),
                 self.createHyperlink(f"{self.tz_conv}{unix_pickup[1]}", relative_pickup[1]))
 
-    async def sendPinnedMessage(self, context, chat_id, text, parse_mode=None, pinned=True):
+    async def sendPinnedMessage(self, context, chat_id, text, parse_mode=None, pinned=True, email=None):
         message = await context.bot.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode, disable_web_page_preview=True)
         if pinned:
             await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id, disable_notification=False)
+        if email:
+            await self.send_email(email, text)
 
     async def exceedQuota(self, user, context, update):
         if user.api.requests_count >= MAX_REQUESTS:
@@ -210,6 +228,7 @@ class TooGoodToGoTelegram:
     async def watchLoop(self, update, context):
         user = self.getUser(update)
         while user.watching and not await self.exceedQuota(user, context, update):
+            print("to")
             start = datetime.datetime.now()
             try:
                 if user.shouldWatch():
@@ -223,7 +242,7 @@ class TooGoodToGoTelegram:
                             text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} - {value.get('price')} (avail: {available})\n"
                             user.seen[display_name] = purchase_end
                     if text:
-                        await self.sendPinnedMessage(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, pinned=user.pinning)
+                        await self.sendPinnedMessage(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, pinned=user.telegram_config.get("pinning"), email=user.telegram_config.get("email_notifications"))
             except TgtgConnectionError as error:
                 await self.handleError(error, user, update, context)
             sleep_time = max(user.watch_interval - (datetime.datetime.now() - start).total_seconds(), 0)
@@ -307,10 +326,28 @@ class TooGoodToGoTelegram:
     async def pin_results(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
-            user.pinning = context.args[0] != "0"
-            text = f"Now pinning results: {user.pinning}"
+            user.telegram_config["pinning"] = context.args[0] != "0"
+            text = f'Now pinning results: {user.telegram_config.get("pinning")}'
+            user.api.saveConfig()
         except (IndexError, ValueError):
             text = "Usage:\n/pin_results [0-1]"
+        await context.bot.send_message(chat_id=user.chat_id, text=text)
+
+    async def notify_email(self, update: Update, context: CallbackContext):
+        user = self.getUser(update)
+        try:
+            notify = context.args[0] != "0"
+            if notify:
+                user.telegram_config.update({"email_notifications": user.api.config.get("api").get("credentials").get("email")})
+                text = f'📧 Sending email notifications to {user.telegram_config.get("email_notifications")}.'
+            else:
+                user.telegram_config.update({"email_notifications": None})
+                text = "🛑 Not sending email notifcations."
+            user.api.saveConfig()
+        except AttributeError:
+            text = "No email address was set."
+        except (IndexError, ValueError):
+            text = f"Usage:\n/notify_email [0-1]"
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
     async def status(self, update: Update, context: CallbackContext):
@@ -399,6 +436,27 @@ class TooGoodToGoTelegram:
         async with init:
             await init.setMyCommands(hints)
 
+    async def send_email(self, recipient, content):
+        message = MIMEMultipart()
+        message['From'] = self.email_credentials.get("sender")
+        message['To'] = recipient
+        message['Subject'] = 'New Results for TooGoodToGo bot'
+        content = content.replace("\n", "<br>")
+        message.attach(MIMEText(content, 'html'))
+
+        try:
+            await aiosmtplib.send(
+                message,
+                hostname=self.email_credentials.get("smtp_server"),
+                port=self.email_credentials.get("smtp_port"),
+                username=self.email_credentials.get("username"),
+                password=self.email_credentials.get("password"),
+                timeout=30
+            )
+        except TimeoutError:
+            logging.error("Timed out when trying to send an email notification.")
+        except Exception as e:
+            logging.error(f"Failed to send email: {e}")
 
 if __name__ == '__main__':
 
