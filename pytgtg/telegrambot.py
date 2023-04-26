@@ -364,7 +364,7 @@ class TooGoodToGoTelegram:
             text = "Usage:\n/set_email name@domain.tld"
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
-    async def login(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+    async def login(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
             auth_email_response = user.api.authByEmail()
@@ -374,7 +374,7 @@ class TooGoodToGoTelegram:
         except TgtgConnectionError as error:
             await self.handleError(error, user, update, context)
 
-    async def login_continue(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+    async def login_continue(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         if user.polling_id is None:
             text = "Run /login before running this command."
@@ -409,22 +409,22 @@ class TooGoodToGoTelegram:
         user.clearHistory()
         await context.bot.send_message(chat_id=user.chat_id, text="🗑️ Cleared history for seen items.")
 
-    async def start(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+    async def start(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         await context.bot.send_message(chat_id=user.chat_id, text=f"👋🏻 Welcome to the TooGoodNotToBot!\nType /help to get started.")
 
-    async def help(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+    async def help(self, update: Update, context: CallbackContext):
         text = "\n".join(
             (f"/{command.__name__} → {description}" for command, description in self.commands.items()))
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
-    async def error(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+    async def error(self, update: Update, context: CallbackContext):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ Common errors and possible diagnosis:\n- 403: Bot's IP is temporally banned.\n- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login.")
 
-    async def wrong_command(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+    async def wrong_command(self, update: Update, context: CallbackContext):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="🤔 Invalid command.\nType /help for help.")
 
-    async def command_logger(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
+    async def command_logger(self, update: Update, context: CallbackContext):
         logging.info(
             f"`{update.message.text}` --- chat:{update.effective_chat.id} | {update.effective_user.first_name}: {update.effective_user.id}")
 
