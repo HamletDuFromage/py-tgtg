@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 from dateutil import parser
-import logging
+import logging.config
 import os
 import pathlib
 import random
@@ -29,6 +29,37 @@ MAX_FAILED_REQUESTS = 3
 DEFAULT_WATCH_INTERVAL = 15.0
 
 PATH = pathlib.Path(__file__).parent.resolve()
+
+LOGGER_CONFIG = {
+    'version': 1,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        }
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+            'stream': 'ext://sys.stdout'
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'formatter': 'standard',
+            'filename': 'telegrambot.log',
+            'mode': 'a'
+        }
+    },
+    'root': {
+        'level': 'INFO',
+        'handlers': ['console', 'file']
+    },
+    'loggers': {
+        'httpx': {
+            'level': 'WARNING'
+        }
+    }
+}
 
 
 class User:
@@ -127,14 +158,9 @@ class User:
                 self.seen.pop(display_name)  # remove item from seen list in case of a future restock
         return res
 
-
 class TooGoodToGoTelegram:
     def __init__(self, TOKEN):
-        self.LOGS = "telegrambot.log"
-        logging.basicConfig(handlers=[logging.StreamHandler(),
-                                      logging.FileHandler(self.LOGS)],
-                            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                            level=logging.INFO)
+        logging.config.dictConfig(LOGGER_CONFIG)
         self.TOKEN = TOKEN
 
         self.application = ApplicationBuilder().token(TOKEN).build()
@@ -228,7 +254,6 @@ class TooGoodToGoTelegram:
     async def watchLoop(self, update, context):
         user = self.getUser(update)
         while user.watching and not await self.exceedQuota(user, context, update):
-            print("to")
             start = datetime.datetime.now()
             try:
                 if user.shouldWatch():
