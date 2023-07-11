@@ -1,9 +1,10 @@
-
+import re
 import random
 import json
 
 import httpx
 import socksio
+from google_play_scraper import app
 
 from exceptions import (TgtgConnectionError, TgtgForbiddenError,
                         TgtgLoggedOutError, TgtgRequestError,
@@ -20,6 +21,19 @@ class TooGoodToGoApi:
         self.failed_requests = 0
         self.proxy = ""
         self.newClient()
+
+    def updateAppVersion(self):
+        tgtg = app("com.app.tgtg")
+        version = tgtg.get("version")
+        if version:
+            user_agent = self.getUserAgent()
+            self.config["api"]["headers"]["user-agent"] = re.sub(r"TGTG/[0-9]+\.[0-9]+\.[0-9]+", f"TGTG/{version}", user_agent)
+            self.saveConfig()
+            return True
+        return False
+
+    def getUserAgent(self):
+        return self.config.get("api").get("headers").get("user-agent")
 
     def randomizeLocation(self, origin):
         var = 1 + random.randint(-100, 100)/1000

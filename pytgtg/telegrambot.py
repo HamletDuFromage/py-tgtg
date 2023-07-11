@@ -415,6 +415,7 @@ class TooGoodToGoTelegram:
         user = self.getUser(update)
         try:
             user.api.login()
+            user.api.updateAppVersion()
             await context.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
             await self.handleError(error, user, update, context)
@@ -436,7 +437,7 @@ class TooGoodToGoTelegram:
 
     async def start(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
-        await context.bot.send_message(chat_id=user.chat_id, text=f"👋🏻 Welcome to the TooGoodNotToBot!\nType /help to get started.")
+        await context.bot.send_message(chat_id=user.chat_id, text=f"👋🏻 Welcome to the TooGoodNotToBot!\nType /help to get started.\n\n<span class='tg-spoiler'>{user.api.getUserAgent()}</span>", parse_mode=constants.ParseMode.HTML)
 
     async def help(self, update: Update, context: CallbackContext):
         text = "\n".join(
