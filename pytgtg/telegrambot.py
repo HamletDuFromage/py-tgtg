@@ -73,11 +73,11 @@ class User:
         self.createConfig(self.config_fname)
         self.polling_id = None
         self.watch_interval = DEFAULT_WATCH_INTERVAL
-        self.watching = False
         self.watcher = None
         self.seen = {}
         self.api = self.getApi(self.config_fname)
         self.setConfigDefaults()
+        self.watching = self.api.config.get("watching", False)
         logging.warn(
             f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id} | username: {self.username}")
 
@@ -95,14 +95,16 @@ class User:
                                                        "email_notifications": None})
         self.telegram_config = self.api.config.get("telegram_config")
 
-    def stopWatching(self):
-        self.watching = False
-        self.watch_interval = DEFAULT_WATCH_INTERVAL
-        try:
-            self.watcher.cancel()
-        except AttributeError:
-            pass
-        self.seen = {}
+    def toggleWatching(self, watching):
+        self.watching = watching
+        self.api.config["watching"] = watching
+        self.api.saveConfig()
+        if watching == False:
+            self.watch_interval = DEFAULT_WATCH_INTERVAL
+            try:
+                self.watcher.cancel()
+            except AttributeError:
+                pass
 
     def shouldWatch(self):
         return True
@@ -302,14 +304,14 @@ class TooGoodToGoTelegram:
             return
         await context.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshing the favorites with an interval of {user.watch_interval} seconds.\nStop watching by typing /stop_watching.")
         await self.show_targets(update, context)
-        user.watching = True
+        user.toggleWatching(True)
         if user.watcher is None or user.watcher.done():
             user.watcher = asyncio.create_task(self.watchLoop(update, context))
 
     async def stop_watching(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         await context.bot.send_message(chat_id=user.chat_id, text="Stopped watching the favorites.")
-        user.stopWatching()
+        user.toggleWatching(False)
 
     async def add_target(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
