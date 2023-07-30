@@ -132,7 +132,6 @@ class TooGoodToGoApi:
     def saveConfig(self):
         with open(self.config_fname, "w") as outfile:
             json.dump(self.config, outfile, indent=4)
-        print("saving!")
 
     def loadConfig(self):
         with open(self.config_fname, "r") as infile:
