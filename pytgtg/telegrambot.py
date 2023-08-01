@@ -312,8 +312,9 @@ class TooGoodToGoTelegram:
             await self.handleError(error, user)
 
     async def create_watcher(self, user):
-        if user.watcher is None or user.watcher.done():
-            user.watcher = asyncio.create_task(self.watchLoop(user))
+        if user.watching:
+            if user.watcher is None or user.watcher.done():
+                user.watcher = asyncio.create_task(self.watchLoop(user))
 
     async def watch(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
