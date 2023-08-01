@@ -8,6 +8,7 @@ import random
 import re
 import shutil
 import json
+from pathlib import Path
 
 import aiosmtplib
 from email.mime.text import MIMEText
@@ -16,7 +17,7 @@ from email.mime.multipart import MIMEMultipart
 from telegram import Bot, Update
 from telegram import constants, helpers
 from telegram.ext import (ApplicationBuilder, CallbackContext, CommandHandler,
-                          MessageHandler, filters)
+                          MessageHandler, filters, Application)
 
 from api import TooGoodToGoApi
 from exceptions import (TgtgConnectionError, TgtgForbiddenError,
@@ -63,12 +64,8 @@ LOGGER_CONFIG = {
 
 
 class User:
-    def __init__(self, update):
-        self.chat_id = update.effective_chat.id
-        self.type = update.effective_chat.type
-        self.user_id = update.effective_user.id
-        self.username = update.effective_user.username
-        self.name = update.effective_user.first_name
+    def __init__(self, chat_id):
+        self.chat_id = chat_id
         self.config_fname = f"config_{self.chat_id}.json"
         self.createConfig(self.config_fname)
         self.polling_id = None
@@ -78,8 +75,16 @@ class User:
         self.api = self.getApi(self.config_fname)
         self.setConfigDefaults()
         self.watching = self.api.config.get("watching", False)
-        logging.warn(
-            f"User {self.name} logged in. chat_id: {self.chat_id} | user_id: {self.user_id} | username: {self.username}")
+
+    @classmethod
+    def from_update(cls, update):
+        cls.type = update.effective_chat.type
+        cls.user_id = update.effective_user.id
+        cls.username = update.effective_user.username
+        cls.name = update.effective_user.first_name
+        logging.warning(
+            f"User {cls.name} logged in. chat_id: {update.effective_chat.id} | user_id: {cls.user_id} | username: {cls.username}")
+        return cls(update.effective_chat.id)
 
     def getApi(self, config_fname):
         return TooGoodToGoApi(config_fname)
@@ -89,7 +94,7 @@ class User:
             shutil.copy(f"{PATH}/config.json.defaults", f_name)
 
     def setConfigDefaults(self):
-        self.api.config.setdefault("telegram_username", self.username)
+        # self.api.config.setdefault("telegram_username", self.username)
         self.targets = self.api.config.setdefault("targets", {})
         self.api.config.setdefault("telegram_config", {"pinning": False,
                                                        "email_notifications": None})
@@ -107,7 +112,7 @@ class User:
                 pass
 
     def shouldWatch(self):
-        return True
+        return self.watching
 
     def clearHistory(self):
         self.seen = {}
@@ -165,20 +170,25 @@ class TooGoodToGoTelegram:
         logging.config.dictConfig(LOGGER_CONFIG)
         self.TOKEN = TOKEN
 
-        self.application = ApplicationBuilder().token(TOKEN).build()
-
         self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
                          self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
                          self.notify_email: "Notify of matches by email", self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
                          self.shutdown: "Shut your client down", self.error: "See common errors", self.start: "Welcome"}
-        self.users = {}
+        self.users = self.getUsers(r"^config_(.+)\.json$")
         try:
             with open("email_credentials.json", "r") as infile:
                 self.email_credentials = json.load(infile)
         except (FileNotFoundError, ValueError):
             self.email_credentials = {}
         self.tz_conv = "https://hamletdufromage.github.io/unix-to-tz/?timestamp="
+
+        self.application = ApplicationBuilder().token(TOKEN).post_init(self.post_init).build()
+        
+    async def post_init(self, application):
+        await self.setCommands()
+        for chat_id in self.users.keys():
+            await self.create_watcher(self.users.get(chat_id))
 
     def runBot(self):
         self.handleHandlers()
@@ -193,16 +203,26 @@ class TooGoodToGoTelegram:
     def getUser(self, update):
         chat_id = update.effective_chat.id
         if chat_id not in self.users:
-            self.users[chat_id] = User(update)
+            self.users[chat_id] = User.from_update(update)
         return self.users.get(chat_id)
+
+    def getUsers(self, config_pattern):
+        users = {}
+        for p in Path.cwd().glob(f"*"):
+            try:
+                chat_id = int(re.search(config_pattern, p.name).group(1))
+                users[chat_id] = User(chat_id)
+            except AttributeError:
+                pass
+        return users
 
     def errorText(self, error):
         return f"{repr(error)}\nType /error for more info."
 
-    async def handleError(self, error, user, update, context):
-        await context.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
+    async def handleError(self, error, user):
+        await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
         if type(error) == TgtgUnauthorizedError:
-            await self.refresh(update, context)
+            await self.refresh_token(user)
         elif type(error) == TgtgForbiddenError:
             user.api.newClient()
 
@@ -227,22 +247,22 @@ class TooGoodToGoTelegram:
         return (self.createHyperlink(f"{self.tz_conv}{unix_pickup[0]}", relative_pickup[0]),
                 self.createHyperlink(f"{self.tz_conv}{unix_pickup[1]}", relative_pickup[1]))
 
-    async def sendPinnedMessage(self, context, chat_id, text, parse_mode=None, pinned=True, email=None):
-        message = await context.bot.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode, disable_web_page_preview=True)
+    async def sendPinnedMessage(self, chat_id, text, parse_mode=None, pinned=True, email=None):
+        message = await self.application.bot.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode, disable_web_page_preview=True)
         if pinned:
-            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id, disable_notification=False)
+            await self.application.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id, disable_notification=False)
         if email:
             await self.send_email(email, text)
 
-    async def exceedQuota(self, user, context, update):
+    async def exceedQuota(self, user):
         if user.api.requests_count >= MAX_REQUESTS:
-            await context.bot.send_photo(chat_id=user.chat_id, photo=MAX_REQUESTS_PHOTO_ID, caption=f"You've sent too many requests (more than {MAX_REQUESTS}). Stopping for now.")
-            await self.refresh(update, context)
+            await self.application.bot.send_photo(chat_id=user.chat_id, photo=MAX_REQUESTS_PHOTO_ID, caption=f"You've sent too many requests (more than {MAX_REQUESTS}). Stopping for now.")
             user.api.requests_count = 0
             return True
         if user.api.failed_requests >= MAX_FAILED_REQUESTS:
-            await context.bot.send_photo(chat_id=user.chat_id, photo=MAX_REQUESTS_PHOTO_ID, caption=f"Too many requests have failed (more than {MAX_FAILED_REQUESTS}). Stopping for now.")
+            await self.application.bot.send_photo(chat_id=user.chat_id, photo=MAX_REQUESTS_PHOTO_ID, caption=f"Too many requests have failed (more than {MAX_FAILED_REQUESTS}). Stopping for now.")
             user.api.failed_requests = 0
+            await self.refresh_token(user)
             return True
         return False
 
@@ -253,28 +273,26 @@ class TooGoodToGoTelegram:
     def createHyperlink(self, link, text):
         return f"<a href=\"{link}\">{text}</a>"
 
-    async def watchLoop(self, update, context):
-        user = self.getUser(update)
-        while user.watching and not await self.exceedQuota(user, context, update):
+    async def watchLoop(self, user):
+        while user.shouldWatch() and not await self.exceedQuota(user):
             start = datetime.datetime.now()
             try:
-                if user.shouldWatch():
-                    text = ""
-                    matches = user.getMatches(user.targets)
-                    for key, value in matches.items():
-                        available = value.get("available")
-                        display_name = value.get('display_name')
-                        purchase_end = value.get("purchase_end")
-                        if user.seen.get(display_name, None) != purchase_end:
-                            text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} - {value.get('price')} (avail: {available})\n"
-                            user.seen[display_name] = purchase_end
-                    if text:
-                        await self.sendPinnedMessage(context=context, chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, pinned=user.telegram_config.get("pinning"), email=user.telegram_config.get("email_notifications"))
+                text = ""
+                matches = user.getMatches(user.targets)
+                for key, value in matches.items():
+                    available = value.get("available")
+                    display_name = value.get('display_name')
+                    purchase_end = value.get("purchase_end")
+                    if user.seen.get(display_name, None) != purchase_end:
+                        text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} - {value.get('price')} (avail: {available})\n"
+                        user.seen[display_name] = purchase_end
+                if text:
+                    await self.sendPinnedMessage(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, pinned=user.telegram_config.get("pinning"), email=user.telegram_config.get("email_notifications"))
             except TgtgConnectionError as error:
-                await self.handleError(error, user, update, context)
+                await self.handleError(error, user)
             sleep_time = max(user.watch_interval - (datetime.datetime.now() - start).total_seconds(), 0)
             await asyncio.sleep(sleep_time * self.randMultiplier())
-        await self.stop_watching(update, context)
+        await self.stop_watcher(user)
 
     async def dry_run(self, update, context):
         await self.show_targets(update, context)
@@ -291,7 +309,11 @@ class TooGoodToGoTelegram:
             else:
                 await context.bot.send_message(chat_id=user.chat_id, text="No magic matches targets.")
         except TgtgConnectionError as error:
-            await self.handleError(error, user, update, context)
+            await self.handleError(error, user)
+
+    async def create_watcher(self, user):
+        if user.watcher is None or user.watcher.done():
+            user.watcher = asyncio.create_task(self.watchLoop(user))
 
     async def watch(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
@@ -305,13 +327,15 @@ class TooGoodToGoTelegram:
         await context.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshing the favorites with an interval of {user.watch_interval} seconds.\nStop watching by typing /stop_watching.")
         await self.show_targets(update, context)
         user.toggleWatching(True)
-        if user.watcher is None or user.watcher.done():
-            user.watcher = asyncio.create_task(self.watchLoop(update, context))
+        await self.create_watcher(user)
+
+    async def stop_watcher(self, user):
+        await self.application.bot.send_message(chat_id=user.chat_id, text="Stopped watching the favorites.")
+        user.toggleWatching(False)
 
     async def stop_watching(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
-        await context.bot.send_message(chat_id=user.chat_id, text="Stopped watching the favorites.")
-        user.toggleWatching(False)
+        await self.stop_watcher(user)
 
     async def add_target(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
@@ -399,7 +423,7 @@ class TooGoodToGoTelegram:
             text = f"📧 The login email should have been sent to {user.api.getCredentials().get('email')}. Open the email on your PC and click the link. Don't open the email on a phone that has the TooGoodToGo app installed. That won't work.\nSend /login_continue when you clicked the link."
             await context.bot.send_message(chat_id=user.chat_id, text=text)
         except TgtgConnectionError as error:
-            await self.handleError(error, user, update, context)
+            await self.handleError(error, user)
 
     async def login_continue(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
@@ -413,14 +437,17 @@ class TooGoodToGoTelegram:
                 text = "⛔ Failed to login."
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
-    async def refresh(self, update: Update, context: CallbackContext):
-        user = self.getUser(update)
+    async def refresh_token(self, user):
         try:
             user.api.login()
             user.api.updateAppVersion()
-            await context.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
+            await self.application.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
-            await self.handleError(error, user, update, context)
+            await self.handleError(error, user)
+
+    async def refresh(self, update: Update, context: CallbackContext):
+        user = self.getUser(update)
+        await self.refresh_token(user)
 
     async def shutdown(self, update: Update, context: CallbackContext):
         await self.stop_watching(update, context)
@@ -457,12 +484,8 @@ class TooGoodToGoTelegram:
             f"`{update.message.text}` --- chat:{update.effective_chat.id} | {update.effective_user.first_name}: {update.effective_user.id}")
 
     async def setCommands(self):
-        init = Bot(self.TOKEN)
-        hints = []
-        for key, value in self.commands.items():
-            hints.append(("/" + key.__name__, value))
-        async with init:
-            await init.setMyCommands(hints)
+        hints = [("/" + k.__name__, v) for k, v in self.commands.items()]
+        await self.application.bot.set_my_commands(hints)
 
     async def send_email(self, recipient, content):
         message = MIMEMultipart()
@@ -493,9 +516,6 @@ if __name__ == '__main__':
         logging.error("Didn't find the TGTG_TELEGRAM_TOKEN environment variable")
     else:
         bot = TooGoodToGoTelegram(TOKEN)
-
-        loop = asyncio.new_event_loop()
-        commands = loop.run_until_complete(bot.setCommands())
-        loop.close()
-
         bot.runBot()
+
+
