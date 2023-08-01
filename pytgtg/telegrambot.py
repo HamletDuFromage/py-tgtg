@@ -77,11 +77,15 @@ class User:
         self.watching = self.api.config.get("watching", False)
 
     @classmethod
-    def from_update(cls, update):
+    def advanced_data(cls, update):
         cls.type = update.effective_chat.type
         cls.user_id = update.effective_user.id
         cls.username = update.effective_user.username
         cls.name = update.effective_user.first_name
+
+    @classmethod
+    def from_update(cls, update):
+        cls.advanced_data(update)
         logging.warning(
             f"User {cls.name} logged in. chat_id: {update.effective_chat.id} | user_id: {cls.user_id} | username: {cls.username}")
         return cls(update.effective_chat.id)
@@ -204,6 +208,8 @@ class TooGoodToGoTelegram:
         chat_id = update.effective_chat.id
         if chat_id not in self.users:
             self.users[chat_id] = User.from_update(update)
+        else:
+            self.users.get(chat_id).advanced_data(update)
         return self.users.get(chat_id)
 
     def getUsers(self, config_pattern):
