@@ -10,13 +10,22 @@ from exceptions import (TgtgConnectionError, TgtgForbiddenError,
                         TgtgLoggedOutError, TgtgRequestError,
                         TgtgUnauthorizedError)
 
+BASE_URL = "https://apptoogoodtogo.com/api/"
+AUTH_BY_EMAIL = "auth/v3/authByEmail"
+AUTH_POLLING_ID = "auth/v3/authByRequestPollingId"
+REFRESH = "auth/v3/token/refresh"
+ITEM = "item/v8"
+ACTIVE_ORDERS = "order/v6/active"
+INACTIVE_ORDERS = "order/v6/inactive"
+BUCKET = "discover/v1/bucket"
+
 
 class TooGoodToGoApi:
     def __init__(self, config_fname="config.json"):
         self.config_fname = config_fname
         self.config = self.loadConfig()
         self.config["origin"] = self.randomizeLocation(self.config.get("origin"))
-        self.baseurl = "https://apptoogoodtogo.com/api/"
+        self.baseurl = BASE_URL
         self.requests_count = 0
         self.failed_requests = 0
         self.proxy = ""
@@ -70,7 +79,7 @@ class TooGoodToGoApi:
             "device_type": self.config.get("api").get("deviceType", "ANDROID"),
             "email": self.getCredentials().get("email")
         }
-        return self.post("auth/v3/authByEmail", json=json)
+        return self.post(AUTH_BY_EMAIL, json=json)
 
     def authPoll(self, polling_id):
         credentials = self.getCredentials()
@@ -79,7 +88,7 @@ class TooGoodToGoApi:
             "email": credentials.get("email"),
             "request_polling_id": polling_id,
         }
-        post = self.post("auth/v3/authByRequestPollingId", json=json)
+        post = self.post(AUTH_POLLING_ID, json=json)
         login = post.json()
         self.config["api"]["session"] = {
             "userId": login["startup_data"]["user"]["user_id"],
@@ -101,7 +110,7 @@ class TooGoodToGoApi:
     def refreshToken(self):
         session = self.getSession()
         json = {"refresh_token": session.get("refreshToken")}
-        res = self.post("auth/v3/token/refresh", json=json)
+        res = self.post(REFRESH, json=json)
         self.config["api"]["session"]["refreshToken"] = res.json().get("refresh_token")
         self.config["api"]["session"]["accessToken"] = res.json().get("access_token")
         self.saveConfig()
@@ -118,16 +127,34 @@ class TooGoodToGoApi:
         self.config["api"]["session"]["accessToken"] = token["refresh_token"]
         return token
 
-    def listFavoriteBusinesses(self):
+    def listFavoriteBusinesses(self, radius=200, page=0, page_size=50):
         session = self.getSession()
         json = {
-            "favorites_only": True,
             "origin": self.config.get("origin"),
-            "radius": 200,
+            "radius": radius,
+            "user_id": session.get("userId"),
+            "paging": {"page": page, "size": page_size},
+            "bucket": {"filler_type": "Favorites"}
+        }
+        headers = {"Authorization": f"Bearer {session.get('accessToken')}"}
+        return self.post(BUCKET, json=json, headers=headers)
+
+    def getActiveOrders(self):
+        session = self.getSession()
+        json = {
             "user_id": session.get("userId")
         }
         headers = {"Authorization": f"Bearer {session.get('accessToken')}"}
-        return self.post("item/v7/", json=json, headers=headers)
+        return self.post(ACTIVE_ORDERS, json=json, headers=headers)
+
+    def getInactiveOrders(self, page=0, page_size=20):
+        session = self.getSession()
+        json = {
+            "paging": {"page": page, "size": page_size},
+            "user_id": session.get("userId")
+        }
+        headers = {"Authorization": f"Bearer {session.get('accessToken')}"}
+        return self.post(INACTIVE_ORDERS, json=json, headers=headers)
 
     def saveConfig(self):
         with open(self.config_fname, "w") as outfile:

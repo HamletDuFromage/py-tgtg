@@ -1,7 +1,6 @@
 
 import threading
 import time
-
 import api
 
 from exceptions import (TgtgConnectionError, TgtgForbiddenError,
@@ -38,16 +37,28 @@ class TooGoodToGoWatcher:
     def listMatches(self):
         try:
             businesses = self.api.listFavoriteBusinesses().json()
-            for item in businesses.get("items"):
+            for item in businesses.get("mobile_bucket").get("items"):
                 if item.get("items_available", 0) > 0:
                     print(f"{item.get('display_name')} (available: {item.get('items_available')})")
         except TgtgConnectionError as error:
             print(repr(error))
 
+    def listInactiveOrders(self):
+        orders = self.api.getInactiveOrders()
+        orders = orders.json()
+        for order in orders.get("orders"):
+            print(order.get("order_id"), order.get("state"), order.get("store_name"))
+
+    def listActiveOrders(self):
+        orders = self.api.getActiveOrders()
+        orders = orders.json()
+        for order in orders.get("orders"):
+            print(order.get("order_id"), order.get("state"), order.get("store_name"))
 
 if __name__ == "__main__":
     watcher = TooGoodToGoWatcher()
     watcher.consoleLogin()
+    watcher.listInactiveOrders()
     c = 0
     while True:
         threading.Thread(target=watcher.listMatches())

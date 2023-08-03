@@ -148,25 +148,33 @@ class User:
                 return target
         return False
 
-    def getMatches(self, targets, minQty=1):
+    def getMatches(self, targets, minQty=1, maxBags=250):
         res = {}
         if targets == {}:
             return res
-        businesses = self.api.listFavoriteBusinesses().json()
-        for item in businesses.get("items"):
-            available = item.get("items_available", 0)
-            display_name = item.get("display_name")
-            if available >= minQty:
-                match = self.matchesDesired(display_name, targets.keys())
-                if match:
-                    res[item.get("item").get("item_id")] = {"display_name": display_name,
-                                                            "quantity": targets.get(match),
-                                                            "available": available,
-                                                            "purchase_end": item.get("purchase_end"),
-                                                            "pickup_interval": item.get("pickup_interval"),
-                                                            "price": self.getPrice(item)}
-            elif display_name in self.seen:
-                self.seen.pop(display_name)  # remove item from seen list in case of a future restock
+        page = 0
+        page_size = 50
+        while page <= maxBags//page_size:
+            businesses = self.api.listFavoriteBusinesses(page=page, page_size=page_size).json()
+            items = businesses.get("mobile_bucket").get("items")
+            for item in items:
+                available = item.get("items_available", 0)
+                display_name = item.get("display_name")
+                if available >= minQty:
+                    match = self.matchesDesired(display_name, targets.keys())
+                    if match:
+                        res[item.get("item").get("item_id")] = {"display_name": display_name,
+                                                                "quantity": targets.get(match),
+                                                                "available": available,
+                                                                "purchase_end": item.get("purchase_end"),
+                                                                "pickup_interval": item.get("pickup_interval"),
+                                                                "price": self.getPrice(item)}
+                elif display_name in self.seen:
+                    self.seen.pop(display_name)  # remove item from seen list in case of a future restock
+            if len(items) < page_size:
+                break
+            else:
+                page += 1
         return res
 
 class TooGoodToGoTelegram:
@@ -451,7 +459,7 @@ class TooGoodToGoTelegram:
             user.api.updateAppVersion()
             await self.application.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
-            await self.handleError(error, user)
+            await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
 
     async def refresh(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
