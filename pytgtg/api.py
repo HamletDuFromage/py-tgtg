@@ -15,8 +15,10 @@ AUTH_BY_EMAIL = "auth/v3/authByEmail"
 AUTH_POLLING_ID = "auth/v3/authByRequestPollingId"
 REFRESH = "auth/v3/token/refresh"
 ITEM = "item/v8"
-ACTIVE_ORDERS = "order/v6/active"
-INACTIVE_ORDERS = "order/v6/inactive"
+ITEM_INFO = ITEM +  "/{}"
+SET_FAVORITE = ITEM + "/{}/setFavorite"
+ACTIVE_ORDERS = "order/v7/active"
+INACTIVE_ORDERS = "order/v7/inactive"
 BUCKET = "discover/v1/bucket"
 
 
@@ -55,6 +57,9 @@ class TooGoodToGoApi:
 
     def newClient(self, use_proxy=False):
         self.client = httpx.Client(cookies=httpx.Cookies(), params=self.config.get("api").get("params"))
+
+    def getAuthHeaders(self, session):
+        return {"Authorization": f"Bearer {session.get('accessToken')}"}
 
     def post(self, endpoint, json={}, headers={}):
         self.requests_count += 1
@@ -136,7 +141,7 @@ class TooGoodToGoApi:
             "paging": {"page": page, "size": page_size},
             "bucket": {"filler_type": "Favorites"}
         }
-        headers = {"Authorization": f"Bearer {session.get('accessToken')}"}
+        headers = self.getAuthHeaders(session)
         return self.post(BUCKET, json=json, headers=headers)
 
     def getActiveOrders(self):
@@ -144,7 +149,7 @@ class TooGoodToGoApi:
         json = {
             "user_id": session.get("userId")
         }
-        headers = {"Authorization": f"Bearer {session.get('accessToken')}"}
+        headers = self.getAuthHeaders(session)
         return self.post(ACTIVE_ORDERS, json=json, headers=headers)
 
     def getInactiveOrders(self, page=0, page_size=20):
@@ -153,8 +158,22 @@ class TooGoodToGoApi:
             "paging": {"page": page, "size": page_size},
             "user_id": session.get("userId")
         }
-        headers = {"Authorization": f"Bearer {session.get('accessToken')}"}
+        headers = self.getAuthHeaders(session)
         return self.post(INACTIVE_ORDERS, json=json, headers=headers)
+
+    def setFavorite(self, item_id, is_favorite=True):
+        session = self.getSession()
+        json = {
+            "is_favorite": is_favorite
+        }
+        headers = self.getAuthHeaders(session)
+        return self.post(SET_FAVORITE.format(item_id), json=json, headers=headers)
+
+    def getItemInfo(self, item_id):
+        session = self.getSession()
+        headers = self.getAuthHeaders(session)
+        json={"user_id": session.get("userId"), "origin": None}
+        return self.post(ITEM_INFO.format(item_id), json=json, headers=headers)
 
     def saveConfig(self):
         with open(self.config_fname, "w") as outfile:

@@ -2,6 +2,7 @@
 import threading
 import time
 import api
+from pprint import pprint
 
 from exceptions import (TgtgConnectionError, TgtgForbiddenError,
                         TgtgLoggedOutError, TgtgUnauthorizedError)
@@ -59,6 +60,8 @@ if __name__ == "__main__":
     watcher = TooGoodToGoWatcher()
     watcher.consoleLogin()
     watcher.listInactiveOrders()
+
+    pprint(watcher.api.getItemInfo(1170509).json().get("display_name"))
     c = 0
     while True:
         threading.Thread(target=watcher.listMatches())

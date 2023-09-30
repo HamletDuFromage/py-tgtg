@@ -185,8 +185,9 @@ class TooGoodToGoTelegram:
         self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
                          self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
+                         self.add_favorite: "Add item to your TGTG favorites",
                          self.notify_email: "Notify of matches by email", self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
-                         self.shutdown: "Shut your client down", self.error: "See common errors", self.start: "Welcome"}
+                         self.shutdown: "Shut your client down", self.about: "Display bot's info", self.error: "See common errors", self.start: "Welcome"}
         self.users = self.getUsers(r"^config_(.+)\.json$")
         try:
             with open("email_credentials.json", "r") as infile:
@@ -374,12 +375,13 @@ class TooGoodToGoTelegram:
     async def remove_target(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
-            keyword = context.args[0].lower()
+            index = int(context.args[0])
+            keyword = list(user.targets)[index]
             user.targets.pop(keyword)
             user.api.saveConfig()
             text = f"Removed {keyword} from targets."
         except (IndexError, ValueError):
-            text = "Usage:\n/remove_target [keyword]"
+            text = "Usage:\n/remove_target [index]"
         except KeyError:
             text = f"Can't remove \"{keyword}\" since it isn't being targeted."
         await context.bot.send_message(chat_id=user.chat_id, text=text)
@@ -387,7 +389,7 @@ class TooGoodToGoTelegram:
     async def show_targets(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         text = "Targeting the following items:\n" + "\n".join(
-            (f"📌 {key} (qty: {value})" for key, value in user.targets.items()))
+            (f"📌 [{index}] {key} (qty: {value})" for index, (key, value) in enumerate(user.targets.items())))
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
     async def pin_results(self, update: Update, context: CallbackContext):
@@ -420,6 +422,20 @@ class TooGoodToGoTelegram:
     async def status(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         await context.bot.send_message(chat_id=user.chat_id, text=f"👀 Watching status: [{user.watching}] with interval: {user.watch_interval}s.")
+
+    async def add_favorite(self, update: Update, context: CallbackContext):
+        user = self.getUser(update)
+        try:
+            item_id = re.search(r"\D*(\d+)\D*", context.args[0]).group(1)
+            user.api.setFavorite(item_id)
+            store = user.api.getItemInfo(item_id).json().get("display_name")
+            share_url = self.createHyperlink(f"https://share.toogoodtogo.com/item/{item_id}/", store)
+            text = f"⭐ Added {share_url} to the favorites!"
+        except (AttributeError, IndexError):
+            text = f"Usage:\n/add_favorite [store_url]"
+        except TgtgConnectionError as error:
+            text = self.errorText(error)
+        await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
     async def set_email(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
@@ -487,6 +503,10 @@ class TooGoodToGoTelegram:
     async def help(self, update: Update, context: CallbackContext):
         text = "\n".join(
             (f"/{command.__name__} → {description}" for command, description in self.commands.items()))
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+    async def about(self, update: Update, context: CallbackContext):
+        text = "🧑🏻‍💻 https://github.com/HamletDuFromage/py-tgtg"
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
     async def error(self, update: Update, context: CallbackContext):
