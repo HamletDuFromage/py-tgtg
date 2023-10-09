@@ -18,8 +18,9 @@ It requires that you provide your bot's token as an environnement variable (`TGT
 
 ### Usage
 - Set your email address with `/set_email`, then login with `/login`
-- Target specific stores from you favorites with `/add_target [store]`
+- Target specific stores from you favorites with `/add_target [store_url]`. Make sure to disable web previews in your messages.
 - Watch for available magic bags with `/watch [watch_interval]`
+- Plenty of other commands are available too. 
 
 ### Like the app?
 - Liberapay : <a href="https://liberapay.com/HamletDuFromage/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a>

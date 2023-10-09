@@ -14,8 +14,8 @@ import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from telegram import Bot, Update
-from telegram import constants, helpers
+from telegram import Bot, Update, ChatPermissions
+from telegram import constants, helpers, error
 from telegram.ext import (ApplicationBuilder, CallbackContext, CommandHandler,
                           MessageHandler, filters, Application)
 
@@ -133,19 +133,11 @@ class User:
             res += code
         return res
 
-    def matchesDesired(self, display_name, targets):
+    def matchesDesired(self, item_id, targets):
+        if item_id in targets:
+            return item_id
         if "*" in targets:
             return "*"
-        for target in targets:
-            store = target.lower().replace('_', ' ')
-            try:
-                description = re.search(r".+\((.+)\)+$", store).group(1)
-                store = store[:-len(description) - 2]
-            except AttributeError:
-                description = ""
-            display_name = display_name.lower()
-            if store in display_name and description in display_name:
-                return target
         return False
 
     def getMatches(self, targets, minQty=1, maxBags=250):
@@ -160,17 +152,18 @@ class User:
             for item in items:
                 available = item.get("items_available", 0)
                 display_name = item.get("display_name")
+                item_id = str(item.get("item").get("item_id"))
                 if available >= minQty:
-                    match = self.matchesDesired(display_name, targets.keys())
+                    match = self.matchesDesired(item_id, targets.keys())
                     if match:
-                        res[item.get("item").get("item_id")] = {"display_name": display_name,
-                                                                "quantity": targets.get(match),
-                                                                "available": available,
-                                                                "purchase_end": item.get("purchase_end"),
-                                                                "pickup_interval": item.get("pickup_interval"),
-                                                                "price": self.getPrice(item)}
-                elif display_name in self.seen:
-                    self.seen.pop(display_name)  # remove item from seen list in case of a future restock
+                        res[item_id] = {"display_name": display_name,
+                                        "quantity": targets.get(match).get("qty"),
+                                        "available": available,
+                                        "purchase_end": item.get("purchase_end"),
+                                        "pickup_interval": item.get("pickup_interval"),
+                                        "price": self.getPrice(item)}
+                elif item_id in self.seen:
+                    self.seen.pop(item_id)  # remove item from seen list in case of a future restock
             if len(items) < page_size:
                 break
             else:
@@ -202,6 +195,7 @@ class TooGoodToGoTelegram:
         await self.setCommands()
         for chat_id in self.users.keys():
             await self.create_watcher(self.users.get(chat_id))
+            #await self.application.bot.set_chat_permissions(chat_id, ChatPermissions(can_add_web_page_previews=False))
 
     def runBot(self):
         self.handleHandlers()
@@ -289,19 +283,22 @@ class TooGoodToGoTelegram:
     def createHyperlink(self, link, text):
         return f"<a href=\"{link}\">{text}</a>"
 
+    def tgtgShareUrl(self, item_id, display_name):
+        return self.createHyperlink(f"https://share.toogoodtogo.com/item/{item_id}/", display_name)
+
     async def watchLoop(self, user):
         while user.shouldWatch() and not await self.exceedQuota(user):
             start = datetime.datetime.now()
             try:
                 text = ""
                 matches = user.getMatches(user.targets)
-                for key, value in matches.items():
-                    available = value.get("available")
-                    display_name = value.get('display_name')
-                    purchase_end = value.get("purchase_end")
-                    if user.seen.get(display_name, None) != purchase_end:
-                        text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} - {value.get('price')} (avail: {available})\n"
-                        user.seen[display_name] = purchase_end
+                for item_id, match in matches.items():
+                    available = match.get("available")
+                    purchase_end = match.get("purchase_end")
+                    description = self.tgtgShareUrl(item_id, match.get("display_name"))
+                    if user.seen.get(item_id, None) != purchase_end:
+                        text += f"👉🏻 {description} - {match.get('price')} (avail: {available})\n"
+                        user.seen[item_id] = purchase_end
                 if text:
                     await self.sendPinnedMessage(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, pinned=user.telegram_config.get("pinning"), email=user.telegram_config.get("email_notifications"))
             except TgtgConnectionError as error:
@@ -316,14 +313,16 @@ class TooGoodToGoTelegram:
         try:
             text = ""
             matches = user.getMatches(user.targets, minQty=0)
-            for key, value in matches.items():
-                available = value.get("available")
-                display_name = value.get('display_name')
-                text += f"👉🏻 {self.createHyperlink(f'https://share.toogoodtogo.com/item/{key}/', display_name)} - {value.get('price')} (avail: {available})\n"
+            matches = dict(sorted(matches.items()))
+            for item_id, match in matches.items():
+                available = match.get("available")
+                description = self.tgtgShareUrl(item_id, match.get("display_name"))
+                text += f"👉🏻 {description} - {match.get('price')} (avail: {available})\n"
             if text:
+                text = f"Found {len(matches)} matches:\n" + text
                 await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
             else:
-                await context.bot.send_message(chat_id=user.chat_id, text="No magic matches targets.")
+                await context.bot.send_message(chat_id=user.chat_id, text="No magic bag matches targets.")
         except TgtgConnectionError as error:
             await self.handleError(error, user)
 
@@ -357,40 +356,42 @@ class TooGoodToGoTelegram:
     async def add_target(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
+            target = context.args[0]
             quantity = int(context.args[1])
-            keyword = context.args[0].lower()
-            if quantity > 0:
-                user.targets.update({keyword: quantity})
-                text = f"Targeting item {keyword} with quantity {quantity}."
+            if target == "*":
+                user.targets.update({target: {"qty": quantity, "display_name": "All favorites"}})
+                text = f"Targeting all favorites with quantity {quantity}."
             else:
-                user.targets.pop(keyword)
-                text = f"Removed {keyword} from targets."
+                item_id, display_name = self.set_favorite(user, target)
+                user.targets.update({item_id: {"qty": quantity, "display_name": display_name}})
+                share_url = self.tgtgShareUrl(item_id, display_name)
+                text = f"Targeting item {share_url} with quantity {quantity}."
+                user.targets = dict(sorted(user.targets.items()))
             user.api.saveConfig()
-        except (IndexError, ValueError):
-            text = "Usage:\n/add_target [keyword_for_store] [quantity]\nFilter specific Magic Bags with /add_target [keyword_for_store(keyword_for_bag)] [quantity]\nWatch all the favorites with /add_target * [quantity]"
-        except KeyError:
-            text = f"Can't remove \"{keyword}\" since it isn't being targeted."
-        await context.bot.send_message(chat_id=user.chat_id, text=text)
+        except (IndexError, ValueError, AttributeError):
+            text = "Usage:\n/add_target [share_url] [quantity]\nWatch all the favorites with /add_target * [quantity]"
+        except TgtgConnectionError as error:
+            text = self.errorText(error)
+        await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
     async def remove_target(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
             index = int(context.args[0])
-            keyword = list(user.targets)[index]
-            user.targets.pop(keyword)
+            item_id = list(user.targets)[index]
+            description =  self.tgtgShareUrl(item_id, user.targets.get(item_id).get("display_name"))
+            user.targets.pop(item_id)
+            text = f"Removed {description} from targets."
             user.api.saveConfig()
-            text = f"Removed {keyword} from targets."
-        except (IndexError, ValueError):
+        except (IndexError, ValueError, KeyError):
             text = "Usage:\n/remove_target [index]"
-        except KeyError:
-            text = f"Can't remove \"{keyword}\" since it isn't being targeted."
-        await context.bot.send_message(chat_id=user.chat_id, text=text)
+        await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
     async def show_targets(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
-        text = "Targeting the following items:\n" + "\n".join(
-            (f"📌 [{index}] {key} (qty: {value})" for index, (key, value) in enumerate(user.targets.items())))
-        await context.bot.send_message(chat_id=user.chat_id, text=text)
+        targets = [f"📌 [{index}] {self.tgtgShareUrl(key, value.get('display_name'))} (qty: {value.get('qty')})" for index, (key, value) in enumerate(user.targets.items())]
+        text = f"Targeting the following {len(targets)} items:\n" + "\n".join(targets)
+        await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
     async def pin_results(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
@@ -423,13 +424,17 @@ class TooGoodToGoTelegram:
         user = self.getUser(update)
         await context.bot.send_message(chat_id=user.chat_id, text=f"👀 Watching status: [{user.watching}] with interval: {user.watch_interval}s.")
 
+    def set_favorite(self, user, item_id):
+        item_id = re.search(r"\D*(\d+)\D*", item_id).group(1)
+        user.api.setFavorite(item_id)
+        display_name = user.api.getItemInfo(item_id).json().get("display_name")
+        return item_id, display_name
+
     async def add_favorite(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
-            item_id = re.search(r"\D*(\d+)\D*", context.args[0]).group(1)
-            user.api.setFavorite(item_id)
-            store = user.api.getItemInfo(item_id).json().get("display_name")
-            share_url = self.createHyperlink(f"https://share.toogoodtogo.com/item/{item_id}/", store)
+            item_id, display_name = self.set_favorite(user, context.args[0])
+            share_url = self.tgtgShareUrl(item_id, display_name)
             text = f"⭐ Added {share_url} to the favorites!"
         except (AttributeError, IndexError):
             text = f"Usage:\n/add_favorite [store_url]"
@@ -471,8 +476,8 @@ class TooGoodToGoTelegram:
 
     async def refresh_token(self, user):
         try:
-            user.api.login()
             user.api.updateAppVersion()
+            user.api.login()
             await self.application.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
             await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
