@@ -19,6 +19,7 @@ ITEM_INFO = ITEM +  "/{}"
 SET_FAVORITE = ITEM + "/{}/setFavorite"
 ACTIVE_ORDERS = "order/v7/active"
 INACTIVE_ORDERS = "order/v7/inactive"
+ABORT_ORDER = "order/v7/{}/abort"
 BUCKET = "discover/v1/bucket"
 
 
@@ -174,6 +175,12 @@ class TooGoodToGoApi:
         headers = self.getAuthHeaders(session)
         json={"user_id": session.get("userId"), "origin": None}
         return self.post(ITEM_INFO.format(item_id), json=json, headers=headers)
+
+    def abortOrder(self, order_id):
+        session = self.getSession()
+        headers = self.getAuthHeaders(session)
+        json = {"cancel_reason_id": 1}
+        return self.post(ABORT_ORDER.format(order_id), json=json, headers=headers)
 
     def saveConfig(self):
         with open(self.config_fname, "w") as outfile:

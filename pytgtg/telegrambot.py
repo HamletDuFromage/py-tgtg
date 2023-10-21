@@ -283,6 +283,9 @@ class TooGoodToGoTelegram:
     def createHyperlink(self, link, text):
         return f"<a href=\"{link}\">{text}</a>"
 
+    def createSpoiler(self, text):
+        return f"<span class='tg-spoiler'>{text}</span>"
+
     def tgtgShareUrl(self, item_id, display_name):
         return self.createHyperlink(f"https://share.toogoodtogo.com/item/{item_id}/", display_name)
 
@@ -503,7 +506,7 @@ class TooGoodToGoTelegram:
 
     async def start(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
-        await context.bot.send_message(chat_id=user.chat_id, text=f"👋🏻 Welcome to the TooGoodNotToBot!\nType /help to get started.\n\n<span class='tg-spoiler'>{user.api.getUserAgent()}</span>", parse_mode=constants.ParseMode.HTML)
+        await context.bot.send_message(chat_id=user.chat_id, text=f"👋🏻 Welcome to the TooGoodNotToBot!\nType /help to get started.\n\n{self.createSpoiler(user.api.getUserAgent())}", parse_mode=constants.ParseMode.HTML)
 
     async def help(self, update: Update, context: CallbackContext):
         text = "\n".join(
