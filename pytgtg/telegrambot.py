@@ -9,6 +9,7 @@ import re
 import shutil
 import json
 from pathlib import Path
+from typing import Self, Callable, Dict
 
 import aiosmtplib
 from email.mime.text import MIMEText
@@ -64,47 +65,48 @@ LOGGER_CONFIG = {
 
 
 class User:
-    def __init__(self, chat_id):
+    def __init__(self, chat_id: int):
         self.chat_id = chat_id
         self.config_fname = f"config_{self.chat_id}.json"
         self.createConfig(self.config_fname)
         self.polling_id = None
         self.watch_interval = DEFAULT_WATCH_INTERVAL
-        self.watcher = None
+        self.watcher: asyncio.Task
         self.seen = {}
         self.api = self.getApi(self.config_fname)
         self.setConfigDefaults()
         self.watching = self.api.config.get("watching", False)
 
     @classmethod
-    def advanced_data(cls, update):
-        cls.type = update.effective_chat.type
-        cls.user_id = update.effective_user.id
-        cls.username = update.effective_user.username
-        cls.name = update.effective_user.first_name
+    def advanced_data(cls, update: Update) -> None:
+        cls.type = getattr(update.effective_chat, "type", "error_type")
+        cls.user_id = getattr(update.effective_user, "id", 0)
+        cls.username = getattr(update.effective_user, "username", "error_username")
+        cls.name = getattr(update.effective_user, "first_name", "error_first_name")
 
     @classmethod
-    def from_update(cls, update):
+    def from_update(cls, update: Update) -> Self:
         cls.advanced_data(update)
+        chat_id = getattr(update.effective_chat, "id", 0)
         logging.warning(
-            f"User {cls.name} logged in. chat_id: {update.effective_chat.id} | user_id: {cls.user_id} | username: {cls.username}")
-        return cls(update.effective_chat.id)
+            f"User {cls.name} logged in. chat_id: {chat_id} | user_id: {cls.user_id} | username: {cls.username}")
+        return cls(chat_id)
 
-    def getApi(self, config_fname):
+    def getApi(self, config_fname: str) -> TooGoodToGoApi:
         return TooGoodToGoApi(config_fname)
 
-    def createConfig(self, f_name):
+    def createConfig(self, f_name: str) -> None:
         if not os.path.exists(f_name):
             shutil.copy(f"{PATH}/config.json.defaults", f_name)
 
-    def setConfigDefaults(self):
+    def setConfigDefaults(self) -> None:
         # self.api.config.setdefault("telegram_username", self.username)
         self.targets = self.api.config.setdefault("targets", {})
         self.api.config.setdefault("telegram_config", {"pinning": False,
                                                        "email_notifications": None})
         self.telegram_config = self.api.config.get("telegram_config")
 
-    def toggleWatching(self, watching):
+    def toggleWatching(self, watching: bool) -> None:
         self.watching = watching
         self.api.config["watching"] = watching
         self.api.saveConfig()
@@ -115,13 +117,13 @@ class User:
             except AttributeError:
                 pass
 
-    def shouldWatch(self):
+    def shouldWatch(self) -> bool:
         return self.watching
 
-    def clearHistory(self):
+    def clearHistory(self) -> None:
         self.seen = {}
 
-    def getPrice(self, item):
+    def getPrice(self, item) -> str:
         price = item.get('item').get('price_including_taxes')
         res = f"{price.get('minor_units') / 10 ** price.get('decimals'):.2f}"
         code = price.get("code")
@@ -133,14 +135,14 @@ class User:
             res += code
         return res
 
-    def matchesDesired(self, item_id, targets):
+    def matchesDesired(self, item_id: str, targets: set[str]) -> str:
         if item_id in targets:
             return item_id
         if "*" in targets:
             return "*"
-        return False
+        return ""
 
-    def getMatches(self, targets, minQty=1, maxBags=250):
+    def getMatches(self, targets: dict[str, dict], minQty: int=1, maxBags: int=250):
         res = {}
         if targets == {}:
             return res
@@ -154,10 +156,10 @@ class User:
                 display_name = item.get("display_name")
                 item_id = str(item.get("item").get("item_id"))
                 if available >= minQty:
-                    match = self.matchesDesired(item_id, targets.keys())
+                    match = self.matchesDesired(item_id, set(targets.keys()))
                     if match:
                         res[item_id] = {"display_name": display_name,
-                                        "quantity": targets.get(match).get("qty"),
+                                        "quantity": targets.get(match).get("qty"), # type: ignore
                                         "available": available,
                                         "purchase_end": item.get("purchase_end"),
                                         "pickup_interval": item.get("pickup_interval"),
@@ -171,11 +173,11 @@ class User:
         return res
 
 class TooGoodToGoTelegram:
-    def __init__(self, TOKEN):
+    def __init__(self, TOKEN: str):
         logging.config.dictConfig(LOGGER_CONFIG)
         self.TOKEN = TOKEN
 
-        self.commands = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
+        self.commands: dict[Callable, str] = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
                          self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
                          self.add_favorite: "Add item to your TGTG favorites",
@@ -191,44 +193,39 @@ class TooGoodToGoTelegram:
 
         self.application = ApplicationBuilder().token(TOKEN).post_init(self.post_init).build()
         
-    async def post_init(self, application):
+    async def post_init(self, application: Application) -> None:
         await self.setCommands()
         for chat_id in self.users.keys():
-            await self.create_watcher(self.users.get(chat_id))
+            await self.create_watcher(self.users.get(chat_id)) # type: ignore
             #await self.application.bot.set_chat_permissions(chat_id, ChatPermissions(can_add_web_page_previews=False))
 
-    def runBot(self):
+    def runBot(self) -> None:
         self.handleHandlers()
         self.application.run_polling()
 
-    def handleHandlers(self):
+    def handleHandlers(self) -> None:
         for func in self.commands.keys():
             self.application.add_handler(CommandHandler(func.__name__, func), group=0)
         self.application.add_handler(MessageHandler(filters.COMMAND, self.wrong_command), group=0)
         self.application.add_handler(MessageHandler(filters.COMMAND, self.command_logger), group=1)
 
-    def getUser(self, update):
-        chat_id = update.effective_chat.id
-        if chat_id not in self.users:
-            self.users[chat_id] = User.from_update(update)
-        else:
-            self.users.get(chat_id).advanced_data(update)
-        return self.users.get(chat_id)
+    def getUser(self, update: Update) -> User:
+        chat_id = getattr(update.effective_chat, "id", 0)
+        return self.users.get(chat_id, User.from_update(update))
 
-    def getUsers(self, config_pattern):
+    def getUsers(self, config_pattern: str) -> dict[int, User]:
         users = {}
         for p in Path.cwd().glob(f"*"):
-            try:
-                chat_id = int(re.search(config_pattern, p.name).group(1))
+            match = re.search(config_pattern, p.name)
+            if match:
+                chat_id = int(match.group(1))
                 users[chat_id] = User(chat_id)
-            except AttributeError:
-                pass
         return users
 
-    def errorText(self, error):
+    def errorText(self, error: Exception) -> str:
         return f"{repr(error)}\nType /error for more info."
 
-    async def handleError(self, error, user):
+    async def handleError(self, error: Exception, user: User) -> None:
         await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
         if type(error) == TgtgUnauthorizedError:
             await self.refresh_token(user)
@@ -236,35 +233,35 @@ class TooGoodToGoTelegram:
             #user.api.newClient()
             await self.refresh_token(user)
 
-    def randMultiplier(self):
+    def randMultiplier(self) -> float:
         return 1 + random.randint(-100, 100)/1000
 
-    def getUnixPickupInterval(self, pickup_interval):
+    def getUnixPickupInterval(self, pickup_interval: dict[str, str]) -> tuple[int, int]:
         start = int(datetime.datetime.timestamp(parser.parse(pickup_interval["start"])))
         end = int(datetime.datetime.timestamp(parser.parse(pickup_interval["end"])))
         return (start, end)
 
-    def calculateRelativePickupInterval(self, pickup_interval):
+    def calculateRelativePickupInterval(self, pickup_interval: dict[str, str]) -> tuple[str, str]:
         now = datetime.datetime.now(datetime.timezone.utc)
         zero_delta = datetime.timedelta(0)  # don't want no negative deltas
         start_delta = max(parser.parse(pickup_interval["start"]) - now, zero_delta)
         end_delta = max(parser.parse(pickup_interval["end"]) - now, zero_delta)
         return (f"{start_delta.seconds//3600} hours and {(start_delta.seconds//60)%60} minutes", f"{end_delta.seconds//3600} hours and {(end_delta.seconds//60)%60} minutes")
 
-    def getUnixConversionLinks(self, pickup_interval):
+    def getUnixConversionLinks(self, pickup_interval: dict[str, str]) -> tuple[str, str]:
         unix_pickup = self.getUnixPickupInterval(pickup_interval)
         relative_pickup = self.calculateRelativePickupInterval(pickup_interval)
         return (self.createHyperlink(f"{self.tz_conv}{unix_pickup[0]}", relative_pickup[0]),
                 self.createHyperlink(f"{self.tz_conv}{unix_pickup[1]}", relative_pickup[1]))
 
-    async def sendPinnedMessage(self, chat_id, text, parse_mode=None, pinned=True, email=None):
+    async def sendPinnedMessage(self, chat_id: int, text: str, parse_mode: str | None=None, pinned: bool=True, email:str|None=None) -> None:
         message = await self.application.bot.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode, disable_web_page_preview=True)
         if pinned:
             await self.application.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id, disable_notification=False)
         if email:
             await self.send_email(email, text)
 
-    async def exceedQuota(self, user):
+    async def exceedQuota(self, user: User) -> bool:
         if user.api.requests_count >= MAX_REQUESTS:
             await self.application.bot.send_photo(chat_id=user.chat_id, photo=MAX_REQUESTS_PHOTO_ID, caption=f"You've sent too many requests (more than {MAX_REQUESTS}). Stopping for now.")
             user.api.requests_count = 0
@@ -276,20 +273,21 @@ class TooGoodToGoTelegram:
             return True
         return False
 
-    async def hasOwnerRights(self, update):
-        return update.effective_chat.type == "private" or \
-            update.effective_user in [admin.user for admin in await update.effective_chat.get_administrators()]
+    async def hasOwnerRights(self, update: Update) -> bool:
+        chat_type = getattr(update.effective_chat, "type", "private")
+        return chat_type == "private" or \
+            update.effective_user in [admin.user for admin in await update.effective_chat.get_administrators()] # type: ignore
 
-    def createHyperlink(self, link, text):
+    def createHyperlink(self, link: str, text: str) -> str:
         return f"<a href=\"{link}\">{text}</a>"
 
-    def createSpoiler(self, text):
+    def createSpoiler(self, text:str) -> str:
         return f"<span class='tg-spoiler'>{text}</span>"
 
-    def tgtgShareUrl(self, item_id, display_name):
+    def tgtgShareUrl(self, item_id: str, display_name: str) -> str:
         return self.createHyperlink(f"https://share.toogoodtogo.com/item/{item_id}/", display_name)
 
-    async def watchLoop(self, user):
+    async def watchLoop(self, user: User) -> None:
         while user.shouldWatch() and not await self.exceedQuota(user):
             start = datetime.datetime.now()
             try:
@@ -310,7 +308,7 @@ class TooGoodToGoTelegram:
             await asyncio.sleep(sleep_time * self.randMultiplier())
         await self.stop_watcher(user)
 
-    async def dry_run(self, update, context):
+    async def dry_run(self, update: Update, context) -> None:
         await self.show_targets(update, context)
         user = self.getUser(update)
         try:
@@ -329,15 +327,15 @@ class TooGoodToGoTelegram:
         except TgtgConnectionError as error:
             await self.handleError(error, user)
 
-    async def create_watcher(self, user):
+    async def create_watcher(self, user: User) -> None:
         if user.watching:
-            if user.watcher is None or user.watcher.done():
+            if hasattr(user, "watcher") == False or user.watcher.done():
                 user.watcher = asyncio.create_task(self.watchLoop(user))
 
-    async def watch(self, update: Update, context: CallbackContext):
+    async def watch(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         try:
-            user.watch_interval = float(context.args[0])
+            user.watch_interval = float(context.args[0]) # type: ignore
         except IndexError:
             await context.bot.send_message(chat_id=user.chat_id, text="🤓 Don't forget that you can set an interval with /watch [sec].\n")
         except ValueError:
@@ -348,19 +346,19 @@ class TooGoodToGoTelegram:
         user.toggleWatching(True)
         await self.create_watcher(user)
 
-    async def stop_watcher(self, user):
+    async def stop_watcher(self, user: User) -> None:
         await self.application.bot.send_message(chat_id=user.chat_id, text="Stopped watching the favorites.")
         user.toggleWatching(False)
 
-    async def stop_watching(self, update: Update, context: CallbackContext):
+    async def stop_watching(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         await self.stop_watcher(user)
 
-    async def add_target(self, update: Update, context: CallbackContext):
+    async def add_target(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         try:
-            target = context.args[0]
-            quantity = int(context.args[1])
+            target = context.args[0] # type: ignore
+            quantity = int(context.args[1]) # type: ignore
             if target == "*":
                 user.targets.update({target: {"qty": quantity, "display_name": "All favorites"}})
                 text = f"Targeting all favorites with quantity {quantity}."
@@ -377,10 +375,10 @@ class TooGoodToGoTelegram:
             text = self.errorText(error)
         await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
-    async def remove_target(self, update: Update, context: CallbackContext):
+    async def remove_target(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         try:
-            index = int(context.args[0])
+            index = int(context.args[0]) # type: ignore
             item_id = list(user.targets)[index]
             description =  self.tgtgShareUrl(item_id, user.targets.get(item_id).get("display_name"))
             user.targets.pop(item_id)
@@ -390,7 +388,7 @@ class TooGoodToGoTelegram:
             text = "Usage:\n/remove_target [index]"
         await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
-    async def show_targets(self, update: Update, context: CallbackContext):
+    async def show_targets(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         targets = [f"📌 [{index}] {self.tgtgShareUrl(key, value.get('display_name'))} (qty: {value.get('qty')})" for index, (key, value) in enumerate(user.targets.items())]
         text = f"Targeting the following {len(targets)} items:\n" + "\n".join(targets)
@@ -399,17 +397,17 @@ class TooGoodToGoTelegram:
     async def pin_results(self, update: Update, context: CallbackContext):
         user = self.getUser(update)
         try:
-            user.telegram_config["pinning"] = context.args[0] != "0"
+            user.telegram_config["pinning"] = context.args[0] != "0" # type: ignore
             text = f'Now pinning results: {user.telegram_config.get("pinning")}'
             user.api.saveConfig()
         except (IndexError, ValueError):
             text = "Usage:\n/pin_results [0-1]"
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
-    async def notify_email(self, update: Update, context: CallbackContext):
+    async def notify_email(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         try:
-            notify = context.args[0] != "0"
+            notify = context.args[0] != "0" # type: ignore
             if notify:
                 user.telegram_config.update({"email_notifications": user.api.config.get("api").get("credentials").get("email")})
                 text = f'📧 Sending email notifications to {user.telegram_config.get("email_notifications")}.'
@@ -423,20 +421,23 @@ class TooGoodToGoTelegram:
             text = f"Usage:\n/notify_email [0-1]"
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
-    async def status(self, update: Update, context: CallbackContext):
+    async def status(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         await context.bot.send_message(chat_id=user.chat_id, text=f"👀 Watching status: [{user.watching}] with interval: {user.watch_interval}s.")
 
     def set_favorite(self, user, item_id):
-        item_id = re.search(r"\D*(\d+)\D*", item_id).group(1)
+        match = re.search(r"\D*(\d+)\D*", item_id)
+        if not match:
+            raise ValueError("Invalid item_id/share url")
+        item_id = match.group(1)
         user.api.setFavorite(item_id)
         display_name = user.api.getItemInfo(item_id).json().get("display_name")
         return item_id, display_name
 
-    async def add_favorite(self, update: Update, context: CallbackContext):
+    async def add_favorite(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         try:
-            item_id, display_name = self.set_favorite(user, context.args[0])
+            item_id, display_name = self.set_favorite(user, context.args[0]) # type: ignore
             share_url = self.tgtgShareUrl(item_id, display_name)
             text = f"⭐ Added {share_url} to the favorites!"
         except (AttributeError, IndexError):
@@ -445,17 +446,17 @@ class TooGoodToGoTelegram:
             text = self.errorText(error)
         await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
-    async def set_email(self, update: Update, context: CallbackContext):
+    async def set_email(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         try:
-            user.api.config["api"]["credentials"]["email"] = context.args[0]
+            user.api.config["api"]["credentials"]["email"] = context.args[0] # type: ignore
             user.api.saveConfig()
-            text = f"Successfully changed email address to {context.args[0]}!"
+            text = f"Successfully changed email address to {context.args[0]}!" # type: ignore
         except IndexError:
             text = "Usage:\n/set_email name@domain.tld"
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
-    async def login(self, update: Update, context: CallbackContext):
+    async def login(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         try:
             auth_email_response = user.api.authByEmail()
@@ -465,7 +466,7 @@ class TooGoodToGoTelegram:
         except TgtgConnectionError as error:
             await self.handleError(error, user)
 
-    async def login_continue(self, update: Update, context: CallbackContext):
+    async def login_continue(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         if user.polling_id is None:
             text = "Run /login before running this command."
@@ -477,7 +478,7 @@ class TooGoodToGoTelegram:
                 text = "⛔ Failed to login."
         await context.bot.send_message(chat_id=user.chat_id, text=text)
 
-    async def refresh_token(self, user):
+    async def refresh_token(self, user: User) -> None:
         try:
             user.api.updateAppVersion()
             user.api.login()
@@ -485,13 +486,13 @@ class TooGoodToGoTelegram:
         except TgtgConnectionError as error:
             await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
 
-    async def refresh(self, update: Update, context: CallbackContext):
+    async def refresh(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         await self.refresh_token(user)
 
-    async def shutdown(self, update: Update, context: CallbackContext):
+    async def shutdown(self, update: Update, context: CallbackContext) -> None:
         await self.stop_watching(update, context)
-        chat_id = update.effective_chat.id
+        chat_id = getattr(update.effective_chat, "id", 0)
         try:
             self.users.pop(chat_id)
             text = "Shut your instance of the TooGoodNotToBotClient down."
@@ -499,39 +500,41 @@ class TooGoodToGoTelegram:
             text = "No instance of the TooGoodNotToBot is running."
         await context.bot.send_message(chat_id=chat_id, text=text)
 
-    async def clear_history(self, update: Update, context: CallbackContext):
+    async def clear_history(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         user.clearHistory()
         await context.bot.send_message(chat_id=user.chat_id, text="🗑️ Cleared history for seen items.")
 
-    async def start(self, update: Update, context: CallbackContext):
+    async def start(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         await context.bot.send_message(chat_id=user.chat_id, text=f"👋🏻 Welcome to the TooGoodNotToBot!\nType /help to get started.\n\n{self.createSpoiler(user.api.getUserAgent())}", parse_mode=constants.ParseMode.HTML)
 
-    async def help(self, update: Update, context: CallbackContext):
-        text = "\n".join(
-            (f"/{command.__name__} → {description}" for command, description in self.commands.items()))
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    async def help(self, update: Update, context: CallbackContext) -> None:
+        commands = (f"/{command.__name__} → {description}" for command, description in self.commands.items())
+        text = "\n".join(commands)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text) # type: ignore
 
-    async def about(self, update: Update, context: CallbackContext):
+    async def about(self, update: Update, context: CallbackContext) -> None:
         text = "🧑🏻‍💻 https://github.com/HamletDuFromage/py-tgtg"
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text) # type: ignore
 
-    async def error(self, update: Update, context: CallbackContext):
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ Common errors and possible diagnosis:\n- 403: Bot's IP is temporally banned.\n- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login.")
+    async def error(self, update: Update, context: CallbackContext) -> None:
+        text = "⚠️ Common errors and possible diagnosis:\n- 403: Bot's IP is temporally banned.\n- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login."
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text) # type: ignore
 
     async def wrong_command(self, update: Update, context: CallbackContext):
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="🤔 Invalid command.\nType /help for help.")
+        text = "🤔 Invalid command.\nType /help for help."
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text) # type: ignore
 
-    async def command_logger(self, update: Update, context: CallbackContext):
+    async def command_logger(self, update: Update, context: CallbackContext) -> None:
         logging.info(
-            f"`{update.message.text}` --- chat:{update.effective_chat.id} | {update.effective_user.first_name}: {update.effective_user.id}")
+            f"`{update.message.text}` --- chat:{update.effective_chat.id} | {update.effective_user.first_name}: {update.effective_user.id}") # type: ignore
 
-    async def setCommands(self):
+    async def setCommands(self) -> None:
         hints = [("/" + k.__name__, v) for k, v in self.commands.items()]
         await self.application.bot.set_my_commands(hints)
 
-    async def send_email(self, recipient, content):
+    async def send_email(self, recipient: str, content:str) -> None:
         message = MIMEMultipart()
         message['From'] = self.email_credentials.get("sender")
         message['To'] = recipient
