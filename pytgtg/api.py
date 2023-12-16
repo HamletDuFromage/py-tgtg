@@ -15,15 +15,22 @@ from exceptions import (
 )
 
 BASE_URL = "https://apptoogoodtogo.com/api/"
-AUTH_BY_EMAIL = "auth/v3/authByEmail"
-AUTH_POLLING_ID = "auth/v3/authByRequestPollingId"
-REFRESH = "auth/v3/token/refresh"
+
+AUTH = "auth/v3/"
+AUTH_BY_EMAIL = AUTH + "authByEmail"
+AUTH_POLLING_ID = AUTH + "authByRequestPollingId"
+REFRESH = AUTH + "refresh"
+
 ITEM = "item/v8"
 ITEM_INFO = ITEM + "/{}"
-SET_FAVORITE = ITEM + "/{}/setFavorite"
-ACTIVE_ORDERS = "order/v7/active"
-INACTIVE_ORDERS = "order/v7/inactive"
-ABORT_ORDER = "order/v7/{}/abort"
+
+SET_FAVORITE = "user/favorite/v1/{}/update"
+
+ORDER = "order/v7/"
+ACTIVE_ORDERS = ORDER + "active"
+INACTIVE_ORDERS = ORDER + "inactive"
+ABORT_ORDER = ORDER + "{}/abort"
+
 BUCKET = "discover/v1/bucket"
 
 

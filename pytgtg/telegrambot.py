@@ -225,13 +225,16 @@ class TooGoodToGoTelegram:
     def errorText(self, error: Exception) -> str:
         return f"{repr(error)}\nType /error for more info."
 
-    async def handleError(self, error: Exception, user: User) -> None:
+    async def handleError(self, error: Exception, user: User) -> bool:
         await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
         if type(error) == TgtgUnauthorizedError:
             await self.refresh_token(user)
+            return True
         elif type(error) == TgtgForbiddenError:
             #user.api.newClient()
             await self.refresh_token(user)
+            return True
+        return False
 
     def randMultiplier(self) -> float:
         return 1 + random.randint(-100, 100)/1000
