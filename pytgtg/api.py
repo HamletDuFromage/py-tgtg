@@ -19,7 +19,7 @@ BASE_URL = "https://apptoogoodtogo.com/api/"
 AUTH = "auth/v3/"
 AUTH_BY_EMAIL = AUTH + "authByEmail"
 AUTH_POLLING_ID = AUTH + "authByRequestPollingId"
-REFRESH = AUTH + "refresh"
+REFRESH = AUTH + "token/refresh"
 
 ITEM = "item/v8"
 ITEM_INFO = ITEM + "/{}"
