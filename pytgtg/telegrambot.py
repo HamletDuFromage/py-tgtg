@@ -124,7 +124,7 @@ class User:
         self.seen = {}
 
     def getPrice(self, item) -> str:
-        price = item.get('item').get('price_including_taxes')
+        price = item.get('item').get('item_price')
         res = f"{price.get('minor_units') / 10 ** price.get('decimals'):.2f}"
         code = price.get("code")
         if code == "EUR":  # use match/case statement in the future
