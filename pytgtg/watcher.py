@@ -48,7 +48,7 @@ class TooGoodToGoWatcher:
         orders = self.api.getInactiveOrders()
         orders = orders.json()
         for order in orders.get("orders"):
-            print(order.get("order_id"), order.get("state"), order.get("store_name"))
+            print(order.get("time_of_purchase").split('T')[0], order.get("order_id"), order.get("state"), order.get("store_name"))
 
     def listActiveOrders(self):
         orders = self.api.getActiveOrders()

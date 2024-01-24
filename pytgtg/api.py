@@ -180,13 +180,13 @@ class TooGoodToGoApi:
         headers = self.getAuthHeaders(session)
         return self.post(INACTIVE_ORDERS, json=json, headers=headers)
 
-    def setFavorite(self, item_id: str, is_favorite: bool = True) -> httpx.Response:
+    def setFavorite(self, item_id: str | int, is_favorite: bool = True) -> httpx.Response:
         session = self.getSession()
         json = {"is_favorite": is_favorite}
         headers = self.getAuthHeaders(session)
         return self.post(SET_FAVORITE.format(item_id), json=json, headers=headers)
 
-    def getItemInfo(self, item_id: str) -> httpx.Response:
+    def getItemInfo(self, item_id: str | int) -> httpx.Response:
         session = self.getSession()
         headers = self.getAuthHeaders(session)
         json = {"user_id": session.get("userId"), "origin": None}
