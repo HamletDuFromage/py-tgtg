@@ -77,21 +77,6 @@ class User:
         self.setConfigDefaults()
         self.watching = self.api.config.get("watching", False)
 
-    @classmethod
-    def advanced_data(cls, update: Update) -> None:
-        cls.type = getattr(update.effective_chat, "type", "error_type")
-        cls.user_id = getattr(update.effective_user, "id", 0)
-        cls.username = getattr(update.effective_user, "username", "error_username")
-        cls.name = getattr(update.effective_user, "first_name", "error_first_name")
-
-    @classmethod
-    def from_update(cls, update: Update) -> Self:
-        cls.advanced_data(update)
-        chat_id = getattr(update.effective_chat, "id", 0)
-        logging.warning(
-            f"User {cls.name} logged in. chat_id: {chat_id} | user_id: {cls.user_id} | username: {cls.username}")
-        return cls(chat_id)
-
     def getApi(self, config_fname: str) -> TooGoodToGoApi:
         return TooGoodToGoApi(config_fname)
 
@@ -192,7 +177,7 @@ class TooGoodToGoTelegram:
         self.tz_conv = "https://hamletdufromage.github.io/unix-to-tz/?timestamp="
 
         self.application = ApplicationBuilder().token(TOKEN).post_init(self.post_init).build()
-        
+
     async def post_init(self, application: Application) -> None:
         await self.setCommands()
         for chat_id in self.users.keys():
@@ -209,9 +194,20 @@ class TooGoodToGoTelegram:
         self.application.add_handler(MessageHandler(filters.COMMAND, self.wrong_command), group=0)
         self.application.add_handler(MessageHandler(filters.COMMAND, self.command_logger), group=1)
 
+    def logNewUser(self, update: Update) -> None:
+        chat_id = getattr(update.effective_chat, "id", 0)
+        user_id = getattr(update.effective_user, "id", 0)
+        username = getattr(update.effective_user, "username", "error_username")
+        name = getattr(update.effective_user, "first_name", "error_first_name")
+        logging.warning(f"User {name} logged in. chat_id: {chat_id} | user_id: {user_id} | username: {username}")
+
     def getUser(self, update: Update) -> User:
         chat_id = getattr(update.effective_chat, "id", 0)
-        return self.users.get(chat_id, User.from_update(update))
+        if chat_id in self.users:
+            return self.users.get(chat_id) # type: ignore
+        else:
+            self.logNewUser(update)
+            return User(chat_id)
 
     def getUsers(self, config_pattern: str) -> dict[int, User]:
         users = {}
