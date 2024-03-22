@@ -149,8 +149,8 @@ class User:
                                         "purchase_end": item.get("purchase_end"),
                                         "pickup_interval": item.get("pickup_interval"),
                                         "price": self.getPrice(item)}
-                elif item_id in self.seen:
-                    self.seen.pop(item_id)  # remove item from seen list in case of a future restock
+                #elif item_id in self.seen:
+                #    self.seen.pop(item_id)  # remove item from seen list in case of a future restock
             if len(items) < page_size:
                 break
             else:
