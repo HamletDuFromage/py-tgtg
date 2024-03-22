@@ -342,6 +342,7 @@ class TooGoodToGoTelegram:
             return
         await context.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshing the favorites with an interval of {user.watch_interval} seconds.\nStop watching by typing /stop_watching.")
         await self.show_targets(update, context)
+        user.clearHistory()
         user.toggleWatching(True)
         await self.create_watcher(user)
 
