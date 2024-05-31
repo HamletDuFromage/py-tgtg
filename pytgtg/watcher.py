@@ -44,11 +44,12 @@ class TooGoodToGoWatcher:
         except TgtgConnectionError as error:
             print(repr(error))
 
-    def listInactiveOrders(self):
-        orders = self.api.getInactiveOrders()
+    def listOrders(self):
+        orders = self.api.getOrders()
         orders = orders.json()
-        for order in orders.get("orders"):
-            print(order.get("time_of_purchase").split('T')[0], order.get("order_id"), order.get("state"), order.get("store_name"))
+        for month in orders.get("orders_per_month"):
+            for order in month.get("orders"):
+                print(order.get("time_of_purchase").split('T')[0], order.get("order_id"), order.get("state"), order.get("store_name"))
 
     def listActiveOrders(self):
         orders = self.api.getActiveOrders()
@@ -59,7 +60,10 @@ class TooGoodToGoWatcher:
 if __name__ == "__main__":
     watcher = TooGoodToGoWatcher()
     watcher.consoleLogin()
-    watcher.listInactiveOrders()
+
+    watcher.api.updateAppVersion()
+    print("user agent:", watcher.api.config["api"]["headers"]["user-agent"])
+    watcher.listOrders()
 
     pprint(watcher.api.getItemInfo(1170509).json().get("display_name"))
     c = 0

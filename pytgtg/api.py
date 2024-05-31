@@ -28,7 +28,7 @@ SET_FAVORITE = "user/favorite/v1/{}/update"
 
 ORDER = "order/v7/"
 ACTIVE_ORDERS = ORDER + "active"
-INACTIVE_ORDERS = ORDER + "inactive"
+# INACTIVE_ORDERS = ORDER + "inactive" # depreciated
 ABORT_ORDER = ORDER + "{}/abort"
 
 BUCKET = "discover/v1/bucket"
@@ -171,14 +171,14 @@ class TooGoodToGoApi:
         headers = self.getAuthHeaders(session)
         return self.post(ACTIVE_ORDERS, json=json, headers=headers)
 
-    def getInactiveOrders(self, page: int = 0, page_size: int = 20) -> httpx.Response:
+    def getOrders(self, page: int = 0, page_size: int = 20) -> httpx.Response:
         session = self.getSession()
         json = {
             "paging": {"page": page, "size": page_size},
             "user_id": session.get("userId"),
         }
         headers = self.getAuthHeaders(session)
-        return self.post(INACTIVE_ORDERS, json=json, headers=headers)
+        return self.post(ORDER, json=json, headers=headers)
 
     def setFavorite(self, item_id: str | int, is_favorite: bool = True) -> httpx.Response:
         session = self.getSession()
