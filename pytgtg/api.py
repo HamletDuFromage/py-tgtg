@@ -4,6 +4,7 @@ import json
 
 import httpx
 import socksio
+import ua_generator
 from google_play_scraper import app
 
 from exceptions import (
@@ -38,7 +39,6 @@ class TooGoodToGoApi:
     def __init__(self, config_fname: str = "config.json"):
         self.config_fname = config_fname
         self.config = self.loadConfig()
-        self.config["origin"] = self.randomizeLocation(self.config.get("origin"))
         self.baseurl = BASE_URL
         self.requests_count = 0
         self.failed_requests = 0
@@ -53,6 +53,20 @@ class TooGoodToGoApi:
             self.config["api"]["headers"]["user-agent"] = re.sub(
                 r"TGTG/[0-9]+\.[0-9]+\.[0-9]+", f"TGTG/{version}", user_agent
             )
+            self.saveConfig()
+            return True
+        return False
+
+    def randomizeUserAgent(self) -> bool:
+        user_agent = self.getUserAgent()
+        new_agent = ua_generator.generate(platform='android').text
+        pattern = r'(\([^)]+\))'
+        match_old = re.search(pattern, user_agent)
+        match_new = re.search(pattern, new_agent)
+        if match_old and match_new:
+            new_device = match_new.group(1)
+            user_agent = re.sub(pattern, f'{new_device}', user_agent, count=1)
+            self.config["api"]["headers"]["user-agent"] = user_agent
             self.saveConfig()
             return True
         return False
@@ -138,6 +152,7 @@ class TooGoodToGoApi:
         res = self.post(REFRESH, json=json)
         self.config["api"]["session"]["refreshToken"] = res.json().get("refresh_token")
         self.config["api"]["session"]["accessToken"] = res.json().get("access_token")
+        self.config["origin"] = self.randomizeLocation(self.config.get("origin"))
         self.saveConfig()
         self.requests_count = 0
         return res
@@ -180,7 +195,9 @@ class TooGoodToGoApi:
         headers = self.getAuthHeaders(session)
         return self.post(ORDER, json=json, headers=headers)
 
-    def setFavorite(self, item_id: str | int, is_favorite: bool = True) -> httpx.Response:
+    def setFavorite(
+        self, item_id: str | int, is_favorite: bool = True
+    ) -> httpx.Response:
         session = self.getSession()
         json = {"is_favorite": is_favorite}
         headers = self.getAuthHeaders(session)

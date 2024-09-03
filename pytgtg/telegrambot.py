@@ -166,7 +166,8 @@ class TooGoodToGoTelegram:
                          self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
                          self.add_favorite: "Add item to your TGTG favorites",
-                         self.notify_email: "Notify of matches by email", self.status: "Show the bot's status", self.clear_history: "Clear history for seen items", self.refresh: "Get a new set of tokens",
+                         self.notify_email: "Notify of matches by email", self.status: "Show the bot's status", self.clear_history: "Clear history for seen items",
+                         self.refresh: "Get a new set of tokens", self.random_ua: "Randomly generate a new user agent",
                          self.shutdown: "Shut your client down", self.about: "Display bot's info", self.error: "See common errors", self.start: "Welcome"}
         self.users = self.getUsers(r"^config_(.+)\.json$")
         try:
@@ -490,6 +491,11 @@ class TooGoodToGoTelegram:
         user = self.getUser(update)
         await self.refresh_token(user)
 
+    async def random_ua(self, update: Update, context: CallbackContext) -> None:
+        user = self.getUser(update)
+        user.api.randomizeUserAgent()
+        await self.refresh_token(user)
+
     async def shutdown(self, update: Update, context: CallbackContext) -> None:
         await self.stop_watching(update, context)
         chat_id = getattr(update.effective_chat, "id", 0)
@@ -507,7 +513,7 @@ class TooGoodToGoTelegram:
 
     async def start(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
-        await context.bot.send_message(chat_id=user.chat_id, text=f"👋🏻 Welcome to the TooGoodNotToBot!\nType /help to get started.\n\n{self.createSpoiler(user.api.getUserAgent())}", parse_mode=constants.ParseMode.HTML)
+        await context.bot.send_message(chat_id=user.chat_id, text=f"👋🏻 Welcome to the TooGoodNotToBot!\nType /help to get started.\n\n{self.createSpoiler(f'{user.chat_id} | {user.api.getUserAgent()}')}", parse_mode=constants.ParseMode.HTML)
 
     async def help(self, update: Update, context: CallbackContext) -> None:
         commands = (f"/{command.__name__} → {description}" for command, description in self.commands.items())
@@ -519,7 +525,7 @@ class TooGoodToGoTelegram:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text) # type: ignore
 
     async def error(self, update: Update, context: CallbackContext) -> None:
-        text = "⚠️ Common errors and possible diagnosis:\n- 403: Bot's IP is temporally banned.\n- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login."
+        text = "⚠️ Common errors and possible diagnosis:\n- 403: Bot's session is temporally banned.Try /random_ua or changing the bot's IP\n- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login."
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text) # type: ignore
 
     async def wrong_command(self, update: Update, context: CallbackContext):
