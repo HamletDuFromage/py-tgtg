@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from logging import shutdown
 from dateutil import parser
 import logging.config
 import os
@@ -69,7 +70,7 @@ class User:
         self.chat_id = chat_id
         self.config_fname = f"config_{self.chat_id}.json"
         self.createConfig(self.config_fname)
-        self.polling_id = None
+        self.polling_id = ""
         self.watch_interval = DEFAULT_WATCH_INTERVAL
         self.watcher: asyncio.Task
         self.seen = {}
@@ -163,11 +164,11 @@ class TooGoodToGoTelegram:
         self.TOKEN = TOKEN
 
         self.commands: dict[Callable, str] = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
-                         self.login_continue: "Confirm login request", self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
+                         self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
                          self.add_favorite: "Add item to your TGTG favorites",
                          self.notify_email: "Notify of matches by email", self.status: "Show the bot's status", self.clear_history: "Clear history for seen items",
-                         self.refresh: "Get a new set of tokens", self.random_ua: "Randomly generate a new user agent",
+                         self.refresh: "Get a new set of tokens", self.random_ua: "Randomly generate a new user agent", self.logout: "Close this tgtg session",
                          self.shutdown: "Shut your client down", self.about: "Display bot's info", self.error: "See common errors", self.start: "Welcome"}
         self.users = self.getUsers(r"^config_(.+)\.json$")
         try:
@@ -462,22 +463,29 @@ class TooGoodToGoTelegram:
         try:
             auth_email_response = user.api.authByEmail()
             user.polling_id = auth_email_response.json().get("polling_id")
-            text = f"📧 The login email should have been sent to {user.api.getCredentials().get('email')}. Open the email on your PC and click the link. Don't open the email on a phone that has the TooGoodToGo app installed. That won't work.\nSend /login_continue when you clicked the link."
+            text = f"📧 The login email should have been sent to {user.api.getCredentials().get('email')}. Open the email on your PC or in a private browser on your phone and click the link. Do not open the email on a phone that has the TooGoodToGo app installed. That won't work."
             await context.bot.send_message(chat_id=user.chat_id, text=text)
+            asyncio.create_task(self.login_polling(user))
         except TgtgConnectionError as error:
             await self.handleError(error, user)
 
-    async def login_continue(self, update: Update, context: CallbackContext) -> None:
-        user = self.getUser(update)
-        if user.polling_id is None:
-            text = "Run /login before running this command."
-        else:
-            try:
-                user.api.authPoll(user.polling_id)
+    async def login_polling(self, user: User):
+        for _ in range(10):
+            if user.api.authPoll(user.polling_id) == True:
                 text = "✅ Successfully logged in!"
-            except TgtgConnectionError:
-                text = "⛔ Failed to login."
-        await context.bot.send_message(chat_id=user.chat_id, text=text)
+                break
+            await asyncio.sleep(10)
+        else:
+            text = "⛔ Failed to login (polling timed out)."
+        await self.application.bot.send_message(chat_id=user.chat_id, text=text)
+
+
+    async def logout(self, update: Update, context: CallbackContext) -> None:
+        user = self.getUser(update)
+        user.api.config["api"]["session"] = {}
+        user.api.saveConfig()
+        await context.bot.send_message(chat_id=user.chat_id, text="Logged out!")
+        await self.shutdown(update, context)
 
     async def refresh_token(self, user: User) -> None:
         try:

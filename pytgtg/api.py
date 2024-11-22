@@ -17,7 +17,7 @@ from exceptions import (
 
 BASE_URL = "https://apptoogoodtogo.com/api/"
 
-AUTH = "auth/v3/"
+AUTH = "auth/v5/"
 AUTH_BY_EMAIL = AUTH + "authByEmail"
 AUTH_POLLING_ID = AUTH + "authByRequestPollingId"
 REFRESH = AUTH + "token/refresh"
@@ -27,7 +27,7 @@ ITEM_INFO = ITEM + "/{}"
 
 SET_FAVORITE = "user/favorite/v1/{}/update"
 
-ORDER = "order/v7/"
+ORDER = "order/v8/"
 ACTIVE_ORDERS = ORDER + "active"
 # INACTIVE_ORDERS = ORDER + "inactive" # depreciated
 ABORT_ORDER = ORDER + "{}/abort"
@@ -120,7 +120,7 @@ class TooGoodToGoApi:
         }
         return self.post(AUTH_BY_EMAIL, json=json)
 
-    def authPoll(self, polling_id: str) -> httpx.Response:
+    def authPoll(self, polling_id: str) -> bool:
         credentials = self.getCredentials()
         json = {
             "device_type": self.config.get("api").get("deviceType", "ANDROID"),
@@ -128,14 +128,15 @@ class TooGoodToGoApi:
             "request_polling_id": polling_id,
         }
         post = self.post(AUTH_POLLING_ID, json=json)
+        if post.status_code != 200:
+            return False
         login = post.json()
         self.config["api"]["session"] = {
-            "userId": login["startup_data"]["user"]["user_id"],
             "accessToken": login["access_token"],
             "refreshToken": login["refresh_token"],
         }
         self.saveConfig()
-        return post
+        return True
 
     def getSession(self) -> dict[str, str]:
         return self.config.get("api").get("session")
@@ -173,24 +174,16 @@ class TooGoodToGoApi:
         json = {
             "origin": self.config.get("origin"),
             "radius": radius,
-            "user_id": session.get("userId"),
             "paging": {"page": page, "size": page_size},
             "bucket": {"filler_type": "Favorites"},
         }
         headers = self.getAuthHeaders(session)
         return self.post(BUCKET, json=json, headers=headers)
 
-    def getActiveOrders(self) -> httpx.Response:
-        session = self.getSession()
-        json = {"user_id": session.get("userId")}
-        headers = self.getAuthHeaders(session)
-        return self.post(ACTIVE_ORDERS, json=json, headers=headers)
-
     def getOrders(self, page: int = 0, page_size: int = 20) -> httpx.Response:
         session = self.getSession()
         json = {
             "paging": {"page": page, "size": page_size},
-            "user_id": session.get("userId"),
         }
         headers = self.getAuthHeaders(session)
         return self.post(ORDER, json=json, headers=headers)
@@ -206,7 +199,7 @@ class TooGoodToGoApi:
     def getItemInfo(self, item_id: str | int) -> httpx.Response:
         session = self.getSession()
         headers = self.getAuthHeaders(session)
-        json = {"user_id": session.get("userId"), "origin": None}
+        json = {"origin": None}
         return self.post(ITEM_INFO.format(item_id), json=json, headers=headers)
 
     def abortOrder(self, order_id: str) -> httpx.Response:
