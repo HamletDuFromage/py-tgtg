@@ -471,14 +471,18 @@ class TooGoodToGoTelegram:
 
     async def login_polling(self, user: User):
         for _ in range(10):
-            if user.api.authPoll(user.polling_id) == True:
+            status_code = user.api.authPoll(user.polling_id)
+            if status_code == 202:
+                await asyncio.sleep(10)
+                continue
+            if status_code == 200:
                 text = "✅ Successfully logged in!"
-                break
-            await asyncio.sleep(10)
+            else: 
+                text = f"⛔ Failed to login (error {status_code})."
+            break
         else:
             text = "⛔ Failed to login (polling timed out)."
         await self.application.bot.send_message(chat_id=user.chat_id, text=text)
-
 
     async def logout(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)

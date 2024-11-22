@@ -120,7 +120,7 @@ class TooGoodToGoApi:
         }
         return self.post(AUTH_BY_EMAIL, json=json)
 
-    def authPoll(self, polling_id: str) -> bool:
+    def authPoll(self, polling_id: str) -> int:
         credentials = self.getCredentials()
         json = {
             "device_type": self.config.get("api").get("deviceType", "ANDROID"),
@@ -129,14 +129,14 @@ class TooGoodToGoApi:
         }
         post = self.post(AUTH_POLLING_ID, json=json)
         if post.status_code != 200:
-            return False
+            return post.status_code
         login = post.json()
         self.config["api"]["session"] = {
             "accessToken": login["access_token"],
             "refreshToken": login["refresh_token"],
         }
         self.saveConfig()
-        return True
+        return post.status_code
 
     def getSession(self) -> dict[str, str]:
         return self.config.get("api").get("session")
