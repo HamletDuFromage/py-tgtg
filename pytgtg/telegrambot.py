@@ -166,7 +166,7 @@ class TooGoodToGoTelegram:
         self.commands: dict[Callable, str] = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
                          self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
-                         self.add_favorite: "Add item to your TGTG favorites",
+                         self.add_favorite: "Add item to your TGTG favorites", self.invite: "Create an order invite for a friend", self.cancel_invite: "Cancel order invite",
                          self.notify_email: "Notify of matches by email", self.status: "Show the bot's status", self.clear_history: "Clear history for seen items",
                          self.refresh: "Get a new set of tokens", self.random_ua: "Randomly generate a new user agent", self.logout: "Close this tgtg session",
                          self.shutdown: "Shut your client down", self.about: "Display bot's info", self.error: "See common errors", self.start: "Welcome"}
@@ -448,6 +448,32 @@ class TooGoodToGoTelegram:
             text = self.errorText(error)
         await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
+    async def invite(self, update: Update, context: CallbackContext) -> None:
+        user = self.getUser(update)
+        try: 
+            order_id = context.args[0] # type: ignore
+            invitation = user.api.createInvitation(order_id)
+            external_id = invitation.json().get("external_id")
+            text = f"✉️ Send this invation link to a friend for them to pickup your order:\n\nhttps://share.toogoodtogo.com/invitation/order/{external_id}"
+        except (AttributeError, IndexError):
+            text = f"Usage:\n/invite [order_id]"
+        except TgtgConnectionError as error:
+            text = self.errorText(error)
+        await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
+
+    async def cancel_invite(self, update: Update, context: CallbackContext) -> None:
+        user = self.getUser(update)
+        try:
+            order_id = context.args[0] # type: ignore
+            invitation_id = user.api.createInvitation(order_id, False).json().get("id")
+            canceled = user.api.cancelInvitation(invitation_id).json().get("state")
+            text = f"Invitation status for order {order_id}: {canceled}"
+        except (AttributeError, IndexError):
+            text = f"Usage:\n/cancel_invite [order_id]"
+        except TgtgConnectionError as error:
+            text = self.errorText(error)
+        await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
+
     async def set_email(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         try:
@@ -486,6 +512,7 @@ class TooGoodToGoTelegram:
 
     async def logout(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
+        user.api.logout()
         user.api.config["api"]["session"] = {}
         user.api.saveConfig()
         await context.bot.send_message(chat_id=user.chat_id, text="Logged out!")

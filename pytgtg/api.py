@@ -19,8 +19,9 @@ BASE_URL = "https://apptoogoodtogo.com/api/"
 
 AUTH = "auth/v5/"
 AUTH_BY_EMAIL = AUTH + "authByEmail"
+LOGOUT = AUTH + "logout"
 AUTH_POLLING_ID = AUTH + "authByRequestPollingId"
-REFRESH = AUTH + "token/refresh"
+REFRESH = "token/v1/refresh"
 
 ITEM = "item/v8"
 ITEM_INFO = ITEM + "/{}"
@@ -31,6 +32,10 @@ ORDER = "order/v8/"
 ACTIVE_ORDERS = ORDER + "active"
 # INACTIVE_ORDERS = ORDER + "inactive" # depreciated
 ABORT_ORDER = ORDER + "{}/abort"
+
+INVITATION = "invitation/v1/order/{}/"
+ENABLE_INVITATION = INVITATION + "createOrEnable"
+DISABLE_INVITATION = "invitation/v1/{}/disable"
 
 BUCKET = "discover/v1/bucket"
 
@@ -138,6 +143,11 @@ class TooGoodToGoApi:
         self.saveConfig()
         return post.status_code
 
+    def logout(self) -> httpx.Response:
+        session = self.getSession()
+        headers = self.getAuthHeaders(session)
+        return self.post(LOGOUT, headers=headers)
+
     def getSession(self) -> dict[str, str]:
         return self.config.get("api").get("session")
 
@@ -207,6 +217,17 @@ class TooGoodToGoApi:
         headers = self.getAuthHeaders(session)
         json = {"cancel_reason_id": 1}
         return self.post(ABORT_ORDER.format(order_id), json=json, headers=headers)
+
+    def createInvitation(self, order_id: str, create: bool=True) -> httpx.Response:
+        session = self.getSession()
+        headers = self.getAuthHeaders(session)
+        endpoint = ENABLE_INVITATION if create else INVITATION
+        return self.post(endpoint.format(order_id), headers=headers)
+    
+    def cancelInvitation(self, invitation_id: str) -> httpx.Response:
+        session = self.getSession()
+        headers = self.getAuthHeaders(session)
+        return self.post(DISABLE_INVITATION.format(invitation_id), headers=headers)
 
     def saveConfig(self) -> None:
         with open(self.config_fname, "w") as outfile:
