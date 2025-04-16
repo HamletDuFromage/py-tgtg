@@ -5,7 +5,9 @@ class TgtgUnauthorizedError(TgtgConnectionError):
     pass
 
 class TgtgForbiddenError(TgtgConnectionError):
-    pass
+    def __init__(self, message: str, captcha: str = ""):
+        super().__init__(message)
+        self.captcha = captcha
 
 class TgtgLoggedOutError(TgtgConnectionError):
     pass

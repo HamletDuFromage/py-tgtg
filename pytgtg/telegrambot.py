@@ -168,7 +168,7 @@ class TooGoodToGoTelegram:
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
                          self.add_favorite: "Add item to your TGTG favorites", self.invite: "Create an order invite for a friend", self.cancel_invite: "Cancel order invite",
                          self.notify_email: "Notify of matches by email", self.status: "Show the bot's status", self.clear_history: "Clear history for seen items",
-                         self.refresh: "Get a new set of tokens", self.random_ua: "Randomly generate a new user agent", self.logout: "Close this tgtg session",
+                         self.refresh: "Get a new set of tokens", self.random_ua: "Randomly generate a new user agent", self.set_datadome: "Set datadome cookie", self.logout: "Close this tgtg session",
                          self.shutdown: "Shut your client down", self.about: "Display bot's info", self.error: "See common errors", self.start: "Welcome"}
         self.users = self.getUsers(r"^config_(.+)\.json$")
         try:
@@ -229,8 +229,11 @@ class TooGoodToGoTelegram:
             await self.refresh_token(user)
             return True
         elif type(error) == TgtgForbiddenError:
-            #user.api.newClient()
-            await self.refresh_token(user)
+            if error.captcha:
+                message = f"Open the captcha link, open the network tab of the browser console, solve the captcha and copy the response containing the datadome cookie and paste it after the command /set_datadome\n\n{error.captcha}"
+                await self.application.bot.send_message(chat_id=user.chat_id, text=message, disable_notification=True)
+            else:
+                await self.refresh_token(user)
             return True
         return False
 
@@ -534,6 +537,17 @@ class TooGoodToGoTelegram:
         user = self.getUser(update)
         user.api.randomizeUserAgent()
         await self.refresh_token(user)
+
+    async def set_datadome(self, update: Update, context: CallbackContext) -> None:
+        user = self.getUser(update)
+        #user.api.setCookie("")
+        try:
+            cookie_str = " ".join(context.args or [])
+            datadome_value = re.search(r'datadome=([^; ]+)', cookie_str).group(1) # type: ignore[union-attr]
+            user.api.setCookie("datadome", datadome_value)
+            await self.application.bot.send_message(chat_id=user.chat_id, text=f"Set the new datadome cookie", disable_notification=True)
+        except (AttributeError, TypeError):
+            await context.bot.send_message(chat_id=user.chat_id, text="Usage:\n/set_datadome captcha_response")
 
     async def shutdown(self, update: Update, context: CallbackContext) -> None:
         await self.stop_watching(update, context)

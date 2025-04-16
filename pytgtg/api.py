@@ -16,6 +16,7 @@ from exceptions import (
 )
 
 BASE_URL = "https://apptoogoodtogo.com/api/"
+COOKIE_DOMAIN = ".apptoogoodtogo.com"
 
 AUTH = "auth/v5/"
 AUTH_BY_EMAIL = AUTH + "authByEmail"
@@ -112,7 +113,8 @@ class TooGoodToGoApi:
             if post.status_code == 401:
                 raise TgtgUnauthorizedError(message)
             elif post.status_code == 403:
-                raise TgtgForbiddenError(message)
+                captcha = post.json().get("url", "")
+                raise TgtgForbiddenError(message, captcha)
             else:
                 raise TgtgConnectionError(message)
         self.failed_requests = 0
@@ -156,6 +158,9 @@ class TooGoodToGoApi:
 
     def getCredentials(self) -> dict[str, str]:
         return self.config.get("api").get("credentials")
+    
+    def setCookie(self, key:str, value: str) -> None:
+        self.client.cookies.set(key, value, COOKIE_DOMAIN)
 
     def refreshToken(self) -> httpx.Response:
         session = self.getSession()
@@ -186,6 +191,7 @@ class TooGoodToGoApi:
             "radius": radius,
             "paging": {"page": page, "size": page_size},
             "bucket": {"filler_type": "Favorites"},
+            "filters": []
         }
         headers = self.getAuthHeaders(session)
         return self.post(BUCKET, json=json, headers=headers)
