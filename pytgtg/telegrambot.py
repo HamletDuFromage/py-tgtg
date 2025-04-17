@@ -26,6 +26,7 @@ from exceptions import (TgtgConnectionError, TgtgForbiddenError,
                         TgtgLoggedOutError, TgtgUnauthorizedError)
 
 MAX_REQUESTS = 1_000_000
+MODULO_REQUESTS_TO_LOG = 140
 MAX_REQUESTS_PHOTO_ID = "AgACAgQAAxkDAAIE_WKTbr9hZFdYN9atFpB_inbKLJBcAAJVrjEbvMucUN6ucAsMN1bdAQADAgADcwADJAQ"
 MAX_FAILED_REQUESTS = 3
 
@@ -275,6 +276,8 @@ class TooGoodToGoTelegram:
             user.api.failed_requests = 0
             await self.refresh_token(user)
             return True
+        if user.api.requests_count % MODULO_REQUESTS_TO_LOG == 0:
+            logging.info(f"Chat {user.chat_id} has been sending {user.api.requests_count} consecutive successful requests")
         return False
 
     async def hasOwnerRights(self, update: Update) -> bool:
