@@ -1,5 +1,6 @@
 import re
 import random
+import uuid
 import json
 
 import httpx
@@ -63,6 +64,10 @@ class TooGoodToGoApi:
             return True
         return False
 
+    def newCorrelationId(self) -> None:
+        self.config["api"]["headers"]["x-correlation-id"] = uuid.uuid4()
+        self.saveConfig()
+
     def randomizeUserAgent(self) -> bool:
         user_agent = self.getUserAgent()
         new_agent = ua_generator.generate(platform='android').text
@@ -121,6 +126,7 @@ class TooGoodToGoApi:
         return post
 
     def authByEmail(self) -> httpx.Response:
+        self.newCorrelationId()
         json = {
             "device_type": self.config.get("api").get("deviceType", "ANDROID"),
             "email": self.getCredentials().get("email"),
@@ -176,6 +182,7 @@ class TooGoodToGoApi:
     def login(self) -> httpx.Response:
         session = self.getSession()
         if session.get("refreshToken", None):
+            self.newCorrelationId()
             return self.refreshToken()
         raise TgtgLoggedOutError("You are not logged in")
 

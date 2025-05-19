@@ -599,7 +599,7 @@ class TooGoodToGoTelegram:
 
     async def send_email(self, recipient: str, content:str) -> None:
         message = MIMEMultipart()
-        message['From'] = self.email_credentials.get("sender")
+        message['From'] = self.email_credentials.get("sender") # type: ignore
         message['To'] = recipient
         message['Subject'] = 'New Results for TooGoodToGo bot'
         content = content.replace("\n", "<br>")
