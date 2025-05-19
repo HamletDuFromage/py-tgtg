@@ -65,7 +65,7 @@ class TooGoodToGoApi:
         return False
 
     def newCorrelationId(self) -> None:
-        self.config["api"]["headers"]["x-correlation-id"] = uuid.uuid4()
+        self.config["api"]["headers"]["x-correlation-id"] = str(uuid.uuid4())
         self.saveConfig()
 
     def randomizeUserAgent(self) -> bool:
