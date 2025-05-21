@@ -63,13 +63,7 @@ class TooGoodToGoWatcher:
                     order.get("state"),
                     order.get("store_name"),
                 )
-
-    def listActiveOrders(self):
-        orders = self.api.getActiveOrders()
-        orders = orders.json()
-        for order in orders.get("orders"):
-            print(order.get("order_id"), order.get("state"), order.get("store_name"))
-
+                
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="TooGoodToGo Watcher")

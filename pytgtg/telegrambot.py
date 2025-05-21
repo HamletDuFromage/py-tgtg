@@ -369,14 +369,15 @@ class TooGoodToGoTelegram:
             target = context.args[0] # type: ignore
             quantity = int(context.args[1]) # type: ignore
             if target == "*":
-                user.targets.update({target: {"qty": quantity, "display_name": "All favorites"}})
+                user.targets.update({target: {"qty": quantity, "display_name": "* All favorites"}})
                 text = f"Targeting all favorites with quantity {quantity}."
             else:
                 item_id, display_name = self.set_favorite(user, target)
                 user.targets.update({item_id: {"qty": quantity, "display_name": display_name}})
                 share_url = self.tgtgShareUrl(item_id, display_name)
                 text = f"Targeting item {share_url} with quantity {quantity}."
-                user.targets = dict(sorted(user.targets.items()))
+            user.targets = dict(sorted(user.targets.items(), key=lambda item: item[1].get("display_name", "").lower()))
+            user.api.config["targets"] = user.targets
             user.api.saveConfig()
         except (IndexError, ValueError, AttributeError):
             text = "Usage:\n/add_target [share_url] [quantity]\nWatch all the favorites with /add_target * [quantity]"
