@@ -243,7 +243,6 @@ class TooGoodToGoApi:
         return self.post(DISABLE_INVITATION.format(invitation_id), headers=headers)
 
     def saveConfig(self) -> None:
-        print(list(self.config["targets"].keys()))
         with open(self.config_fname, "w") as outfile:
             json.dump(self.config, outfile, indent=4)
 
