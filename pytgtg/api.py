@@ -96,7 +96,9 @@ class TooGoodToGoApi:
 
     def newClient(self, use_proxy: bool = False) -> None:
         self.client = httpx.Client(
-            cookies=httpx.Cookies(), params=self.config.get("api").get("params")
+            cookies=httpx.Cookies(),
+            params=self.config.get("api").get("params"),
+            timeout=7.5 # default is 5s
         )
 
     def getAuthHeaders(self, session: dict[str, str]) -> dict[str, str]:
