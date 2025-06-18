@@ -388,14 +388,19 @@ class TooGoodToGoTelegram:
     async def remove_target(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
         try:
-            index = int(context.args[0]) # type: ignore
-            item_id = list(user.targets)[index]
-            description =  self.tgtgShareUrl(item_id, user.targets.get(item_id).get("display_name"))
-            user.targets.pop(item_id)
-            text = f"Removed {description} from targets."
+            if not context.args:
+                raise ValueError
+            indexes = sorted(set(int(i) for i in context.args), reverse=True)  # type: ignore
+            targets_list = list(user.targets)
+            descriptions = []
+            for index in indexes:
+                item_id = item_id = targets_list[index]
+                descriptions.append(self.tgtgShareUrl(item_id, user.targets.get(item_id).get("display_name")))
+                user.targets.pop(item_id)
+            text = "Removed the following from targets:\n" + "\n".join(f"• {desc}" for desc in descriptions)
             user.api.saveConfig()
         except (IndexError, ValueError, KeyError):
-            text = "Usage:\n/remove_target [index]"
+            text = "Usage:\n/remove_target [index] ([index])"
         await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
     async def show_targets(self, update: Update, context: CallbackContext) -> None:
