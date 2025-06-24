@@ -233,9 +233,10 @@ class TooGoodToGoTelegram:
             if error.captcha:
                 message = f"Encountered a captcha. Try /refresh\n\nIf this error persists, open the captcha link, open the network tab of your browser console, solve the captcha and copy the response containing the datadome cookie and paste it after the command /set_datadome\n\n{self.createHyperlink(error.captcha, error.captcha[:50] + '…')}"
                 await self.application.bot.send_message(chat_id=user.chat_id, text=message, parse_mode=constants.ParseMode.HTML, disable_notification=True)
-                await self.stop_watcher(user)
-            else:
-                await self.refresh_token(user)
+            #    await self.stop_watcher(user)
+            #else:
+            #    await self.refresh_token(user)
+            await self.refresh_token(user)
             return True
         return False
 
@@ -588,7 +589,10 @@ class TooGoodToGoTelegram:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text) # type: ignore
 
     async def error(self, update: Update, context: CallbackContext) -> None:
-        text = "⚠️ Common errors and possible diagnosis:\n- 403: Bot's session is temporally banned.Try /random_ua or changing the bot's IP\n- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login."
+        text = "⚠️ Common errors and possible diagnosis:\n" \
+            "- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login.\n" \
+            "- 403: Bot's session is temporally unauthorized. If this persists, try /random_ua or changing the bot's IP\n" \
+            "- 404: The requested endpoint wasn't found. Make sure the bot is up-to-date or raise an issue on Github"
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text) # type: ignore
 
     async def wrong_command(self, update: Update, context: CallbackContext):
