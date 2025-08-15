@@ -323,7 +323,7 @@ class TooGoodToGoTelegram:
         try:
             text = ""
             matches = user.getMatches(user.targets, minQty=0)
-            matches = dict(sorted(matches.items()))
+            matches = dict(sorted(matches.items(), key=lambda item: item[1].get("display_name", "").lower()))
             for item_id, match in matches.items():
                 available = match.get("available")
                 description = self.tgtgShareUrl(item_id, match.get("display_name"))
