@@ -226,7 +226,7 @@ class TooGoodToGoTelegram:
 
     async def handleError(self, error: Exception, user: User) -> bool:
         logging.error(f"Chat {user.chat_id} - {error.response.json()}")
-        await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
+        await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True, disable_web_page_preview=True)
         if type(error) == TgtgUnauthorizedError:
             await self.refresh_token(user)
             return True
@@ -384,7 +384,8 @@ class TooGoodToGoTelegram:
         except (IndexError, ValueError, AttributeError):
             text = "Usage:\n/add_target [share_url] [quantity]\nWatch all the favorites with /add_target * [quantity]"
         except TgtgConnectionError as error:
-            text = self.errorText(error)
+            await self.handleError(error, user)
+            return
         await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
     async def remove_target(self, update: Update, context: CallbackContext) -> None:
@@ -460,7 +461,8 @@ class TooGoodToGoTelegram:
         except (AttributeError, IndexError):
             text = f"Usage:\n/add_favorite [store_url]"
         except TgtgConnectionError as error:
-            text = self.errorText(error)
+            await self.handleError(error, user)
+            return
         await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
     async def invite(self, update: Update, context: CallbackContext) -> None:
@@ -473,7 +475,8 @@ class TooGoodToGoTelegram:
         except (AttributeError, IndexError):
             text = f"Usage:\n/invite [order_id]"
         except TgtgConnectionError as error:
-            text = self.errorText(error)
+            await self.handleError(error, user)
+            return
         await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
     async def cancel_invite(self, update: Update, context: CallbackContext) -> None:
@@ -486,7 +489,8 @@ class TooGoodToGoTelegram:
         except (AttributeError, IndexError):
             text = f"Usage:\n/cancel_invite [order_id]"
         except TgtgConnectionError as error:
-            text = self.errorText(error)
+            await self.handleError(error, user)
+            return
         await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, disable_web_page_preview=True)
 
     async def set_email(self, update: Update, context: CallbackContext) -> None:
@@ -539,7 +543,7 @@ class TooGoodToGoTelegram:
             user.api.login()
             await self.application.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
-            await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
+            await self.handleError(error, user)
 
     async def refresh(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
