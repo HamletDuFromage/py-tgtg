@@ -234,11 +234,8 @@ class TooGoodToGoTelegram:
             if error.captcha:
                 message = f"Encountered a captcha. Try /refresh\n\nIf this error persists, open the captcha link, open the network tab of your browser console, solve the captcha and copy the response containing the datadome cookie and paste it after the command /set_datadome\n\n{self.createHyperlink(error.captcha, error.captcha[:50] + '…')}"
                 await self.application.bot.send_message(chat_id=user.chat_id, text=message, parse_mode=constants.ParseMode.HTML, disable_notification=True)
-            #    await self.stop_watcher(user)
-            #else:
-            #    await self.refresh_token(user)
-            await self.refresh_token(user)
-            return True
+                await self.refresh_token(user)
+                return True
         return False
 
     def randMultiplier(self) -> float:
@@ -543,7 +540,8 @@ class TooGoodToGoTelegram:
             user.api.login()
             await self.application.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
-            await self.handleError(error, user)
+            logging.error(f"Chat {user.chat_id} - {error.response.json()}")
+            await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error))
 
     async def refresh(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
