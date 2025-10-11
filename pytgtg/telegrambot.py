@@ -225,6 +225,7 @@ class TooGoodToGoTelegram:
         return f"{repr(error)}\nType /error for more info."
 
     async def handleError(self, error: Exception, user: User) -> bool:
+        logging.error(f"Chat {user.chat_id} - {error.response.json()}")
         await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True)
         if type(error) == TgtgUnauthorizedError:
             await self.refresh_token(user)
