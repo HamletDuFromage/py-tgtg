@@ -32,6 +32,8 @@ MAX_FAILED_REQUESTS = 3
 
 DEFAULT_WATCH_INTERVAL = 15.0
 
+RESURECTION_INTERVAL = 300
+
 PATH = pathlib.Path(__file__).parent.resolve()
 
 LOGGER_CONFIG = {
@@ -183,12 +185,16 @@ class TooGoodToGoTelegram:
 
     async def post_init(self, application: Application) -> None:
         await self.setCommands()
+        await self.resume_bots()
+
+    async def resume_bots(self, context: CallbackContext | None=None) -> None:
         for chat_id in self.users.keys():
             await self.create_watcher(self.users.get(chat_id)) # type: ignore
-            #await self.application.bot.set_chat_permissions(chat_id, ChatPermissions(can_add_web_page_previews=False))
 
     def runBot(self) -> None:
         self.handleHandlers()
+        if self.application.job_queue:
+            self.application.job_queue.run_repeating(self.resume_bots, interval=RESURECTION_INTERVAL, first=RESURECTION_INTERVAL)
         self.application.run_polling()
 
     def handleHandlers(self) -> None:
