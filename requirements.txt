@@ -1,7 +1,7 @@
 aiosmtplib>=2.0.1
 httpx>=0.22.0
 python_dateutil>=2.8.2
-python_telegram_bot>=20.2
+python-telegram-bot[job-queue]>=20.2
 socksio>=1.0.0
 google_play_scraper>=1.2.4
 ua_generator>=1.0.4
