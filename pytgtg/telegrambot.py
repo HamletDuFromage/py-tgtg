@@ -343,6 +343,7 @@ class TooGoodToGoTelegram:
     async def create_watcher(self, user: User) -> None:
         if user.watching:
             if hasattr(user, "watcher") == False or user.watcher.done():
+                logging.info(f"Resurecting watcher for {user.chat_id}")
                 user.watcher = asyncio.create_task(self.watchLoop(user))
 
     async def watch(self, update: Update, context: CallbackContext) -> None:
