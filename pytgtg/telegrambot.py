@@ -63,6 +63,9 @@ LOGGER_CONFIG = {
     'loggers': {
         'httpx': {
             'level': 'WARNING'
+        },
+        'apscheduler': {
+            'level': 'WARNING'
         }
     }
 }
