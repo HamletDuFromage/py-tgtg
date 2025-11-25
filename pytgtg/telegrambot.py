@@ -320,6 +320,8 @@ class TooGoodToGoTelegram:
                     await self.sendPinnedMessage(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, pinned=user.telegram_config.get("pinning"), email=user.telegram_config.get("email_notifications"))
             except TgtgConnectionError as error:
                 await self.handleError(error, user)
+            except Exception as e:
+                logging.error(f"Unexpected error in watchLoop for {user.chat_id}: {e}", exc_info=True)
             sleep_time = max(user.watch_interval - (datetime.datetime.now() - start).total_seconds(), 0)
             await asyncio.sleep(sleep_time * self.randMultiplier())
         await self.stop_watcher(user)
