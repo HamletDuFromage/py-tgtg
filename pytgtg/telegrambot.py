@@ -192,7 +192,7 @@ class TooGoodToGoTelegram:
 
     async def resume_bots(self, context: CallbackContext | None=None) -> None:
         for chat_id in self.users.keys():
-            await self.create_watcher(self.users.get(chat_id)) # type: ignore
+            await self.create_watcher(self.users.get(chat_id), resurection=True) # type: ignore
 
     def runBot(self) -> None:
         self.handleHandlers()
@@ -247,7 +247,7 @@ class TooGoodToGoTelegram:
                     await self.refresh_token(user)
                     return True
         except:
-            logging.error(f"Couldn't handle error {error}")
+            logging.error(f"Unexpected handleError error for {user.chat_id}: {error}")
         return False
 
     def randMultiplier(self) -> float:
@@ -348,10 +348,12 @@ class TooGoodToGoTelegram:
         except TgtgConnectionError as error:
             await self.handleError(error, user)
 
-    async def create_watcher(self, user: User) -> None:
+    async def create_watcher(self, user: User, resurection: bool=False) -> None:
         if user.watching:
             if hasattr(user, "watcher") == False or user.watcher.done():
-                logging.info(f"Resurecting watcher for {user.chat_id}")
+                if resurection:
+                    logging.info(f"Resurecting watcher for {user.chat_id}")
+                    await self.refresh_token(user, silent=True)
                 user.watcher = asyncio.create_task(self.watchLoop(user))
 
     async def watch(self, update: Update, context: CallbackContext) -> None:
@@ -549,14 +551,17 @@ class TooGoodToGoTelegram:
         await context.bot.send_message(chat_id=user.chat_id, text="Logged out!")
         await self.shutdown(update, context)
 
-    async def refresh_token(self, user: User) -> None:
+    async def refresh_token(self, user: User, silent: bool=False) -> None:
         try:
             user.api.updateAppVersion()
             user.api.login()
-            await self.application.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
+            if not silent:
+                await self.application.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
         except TgtgConnectionError as error:
-            logging.error(f"Chat {user.chat_id} - {error.response.json()}")
+            logging.error(f"Chat {user.chat_id} - {error}")
             await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error))
+        except Exception as error:
+            logging.error(f"Unexpected refresh_token error for {user.chat_id}: {error}")
 
     async def refresh(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)
