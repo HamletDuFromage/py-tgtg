@@ -233,18 +233,21 @@ class TooGoodToGoTelegram:
     def errorText(self, error: Exception) -> str:
         return f"{repr(error)}\nType /error for more info."
 
-    async def handleError(self, error: Exception, user: User) -> bool:
-        logging.error(f"Chat {user.chat_id} - {error.response.json()}")
-        await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True, disable_web_page_preview=True)
-        if type(error) == TgtgUnauthorizedError:
-            await self.refresh_token(user)
-            return True
-        elif type(error) == TgtgForbiddenError:
-            if error.captcha:
-                message = f"Encountered a captcha. Try /refresh\n\nIf this error persists, open the captcha link, open the network tab of your browser console, solve the captcha and copy the response containing the datadome cookie and paste it after the command /set_datadome\n\n{self.createHyperlink(error.captcha, error.captcha[:50] + '…')}"
-                await self.application.bot.send_message(chat_id=user.chat_id, text=message, parse_mode=constants.ParseMode.HTML, disable_notification=True)
+    async def handleError(self, error: TgtgConnectionError, user: User) -> bool:
+        try:
+            logging.error(f"Chat {user.chat_id} - {error}")
+            await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True, disable_web_page_preview=True)
+            if type(error) == TgtgUnauthorizedError:
                 await self.refresh_token(user)
                 return True
+            elif type(error) == TgtgForbiddenError:
+                if error.captcha:
+                    message = f"Encountered a captcha. Try /refresh\n\nIf this error persists, open the captcha link, open the network tab of your browser console, solve the captcha and copy the response containing the datadome cookie and paste it after the command /set_datadome\n\n{self.createHyperlink(error.captcha, error.captcha[:50] + '…')}"
+                    await self.application.bot.send_message(chat_id=user.chat_id, text=message, parse_mode=constants.ParseMode.HTML, disable_notification=True)
+                    await self.refresh_token(user)
+                    return True
+        except:
+            logging.error(f"Couldn't handle error {error}")
         return False
 
     def randMultiplier(self) -> float:
@@ -321,7 +324,7 @@ class TooGoodToGoTelegram:
             except TgtgConnectionError as error:
                 await self.handleError(error, user)
             except Exception as e:
-                logging.error(f"Unexpected error in watchLoop for {user.chat_id}: {e}", exc_info=True)
+                logging.error(f"Unexpected error in watchLoop for {user.chat_id}: {e}")
             sleep_time = max(user.watch_interval - (datetime.datetime.now() - start).total_seconds(), 0)
             await asyncio.sleep(sleep_time * self.randMultiplier())
         await self.stop_watcher(user)

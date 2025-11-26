@@ -113,7 +113,7 @@ class TooGoodToGoApi:
             post = self.client.post(
                 self.url(endpoint), json=json, headers={**headers, **self.getHeaders()}
             )
-        except (socksio.exceptions.ProtocolError, httpx.RequestError) as error:
+        except (socksio.exceptions.ProtocolError, httpx.HTTPError) as error:
             raise TgtgRequestError(repr(error))
         if not post.is_success:
             message = f"Error {post.status_code} for post request {endpoint}"
