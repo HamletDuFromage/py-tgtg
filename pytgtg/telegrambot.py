@@ -142,7 +142,8 @@ class User:
         page_size = 50
         while page <= maxBags//page_size:
             businesses = self.api.listFavoriteBusinesses(page=page, page_size=page_size).json()
-            items = businesses.get("mobile_bucket").get("items")
+            # items = businesses.get("mobile_bucket").get("items") # listBucket()
+            items = businesses.get("favourite_items")
             for item in items:
                 available = item.get("items_available", 0)
                 display_name = item.get("display_name")

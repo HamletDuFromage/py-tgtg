@@ -44,7 +44,7 @@ class TooGoodToGoWatcher:
     def listMatches(self):
         try:
             businesses = self.api.listFavoriteBusinesses().json()
-            for item in businesses.get("mobile_bucket").get("items"):
+            for item in businesses.get("favourite_items"):
                 if item.get("items_available", 0) > 0:
                     print(
                         f"{item.get('display_name')} (available: {item.get('items_available')})"

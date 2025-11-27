@@ -25,8 +25,9 @@ LOGOUT = AUTH + "logout"
 AUTH_POLLING_ID = AUTH + "authByRequestPollingId"
 REFRESH = "token/v1/refresh"
 
-ITEM = "item/v8"
+ITEM = "item/v9"
 ITEM_INFO = ITEM + "/{}"
+FAVORITES = ITEM + "/favorites"
 
 SET_FAVORITE = "user/favorite/v1/{}/update"
 
@@ -191,19 +192,30 @@ class TooGoodToGoApi:
     def updateSession(self, token: dict[str, str]) -> None:
         self.config["api"]["session"]["accessToken"] = token["refresh_token"]
 
-    def listFavoriteBusinesses(
-        self, radius: int = 200, page: int = 0, page_size: int = 50
+    def listBucket(
+        self, type: str = "Favorites", radius: int = 200, page: int = 0, page_size: int = 50
     ) -> httpx.Response:
         session = self.getSession()
         json = {
             "origin": self.config.get("origin"),
             "radius": radius,
             "paging": {"page": page, "size": page_size},
-            "bucket": {"filler_type": "Favorites"},
+            "bucket": {"filler_type": type},
             "filters": []
         }
         headers = self.getAuthHeaders(session)
         return self.post(BUCKET, json=json, headers=headers)
+
+    def listFavoriteBusinesses(
+        self, page: int = 0, page_size: int = 50
+    ) -> httpx.Response:
+        session = self.getSession()
+        json = {
+            "origin": self.config.get("origin"),
+            "paging": {"page": page, "size": page_size},
+        }
+        headers = self.getAuthHeaders(session)
+        return self.post(FAVORITES, json=json, headers=headers)
 
     def getOrders(self, page: int = 0, page_size: int = 20) -> httpx.Response:
         session = self.getSession()
