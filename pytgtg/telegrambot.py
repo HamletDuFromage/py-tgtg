@@ -558,6 +558,7 @@ class TooGoodToGoTelegram:
             user.api.login()
             if not silent:
                 await self.application.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
+            user.api.setUserDevice()
         except TgtgConnectionError as error:
             logging.error(f"Chat {user.chat_id} - {error}")
             await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error))

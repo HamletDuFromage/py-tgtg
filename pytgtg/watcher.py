@@ -36,6 +36,7 @@ class TooGoodToGoWatcher:
         try:
             self.api.authPoll(polling_id)
             print("✔️ Successfully logged in!")
+            self.api.setUserDevice()
             return True
         except TgtgConnectionError:
             print("❌ Failed to login.")

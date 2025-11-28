@@ -1,6 +1,7 @@
 import re
 import random
 import uuid
+import secrets
 import json
 
 import httpx
@@ -41,6 +42,9 @@ ENABLE_INVITATION = INVITATION + "createOrEnable"
 DISABLE_INVITATION = "invitation/v1/{}/disable"
 
 BUCKET = "discover/v1/bucket"
+
+DEVICE = "user/device/v1/"
+SET_USER_DEVICE = DEVICE + "setUserDevice"
 
 
 class TooGoodToGoApi:
@@ -191,6 +195,20 @@ class TooGoodToGoApi:
 
     def updateSession(self, token: dict[str, str]) -> None:
         self.config["api"]["session"]["accessToken"] = token["refresh_token"]
+
+    def generateDeviceId(self) -> None:
+        self.config["api"]["device_id"] = secrets.token_hex(8)
+        self.saveConfig()
+
+    def setUserDevice(self) -> httpx.Response:
+        session = self.getSession()
+        headers = self.getAuthHeaders(session)
+        if not self.config.get("api").get("device_id"):
+            self.generateDeviceId()
+        json = {
+            "device_id": self.config.get("api").get("device_id"),
+        }
+        return self.post(SET_USER_DEVICE, json=json, headers=headers)
 
     def listBucket(
         self, type: str = "Favorites", radius: int = 200, page: int = 0, page_size: int = 50
