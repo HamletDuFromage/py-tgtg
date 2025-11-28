@@ -119,16 +119,16 @@ class TooGoodToGoApi:
                 self.url(endpoint), json=json, headers={**headers, **self.getHeaders()}
             )
         except (socksio.exceptions.ProtocolError, httpx.HTTPError) as error:
-            raise TgtgRequestError(repr(error))
+            raise TgtgRequestError(endpoint, repr(error))
         if not post.is_success:
             message = f"Error {post.status_code} for post request {endpoint}"
             if post.status_code == 401:
-                raise TgtgUnauthorizedError(message, post)
+                raise TgtgUnauthorizedError(endpoint, message, post)
             elif post.status_code == 403:
                 captcha = post.json().get("url", "")
-                raise TgtgForbiddenError(message, captcha, post)
+                raise TgtgForbiddenError(endpoint, message, captcha, post)
             else:
-                raise TgtgConnectionError(message, post)
+                raise TgtgConnectionError(endpoint, message, post)
         self.failed_requests = 0
         return post
 
@@ -191,7 +191,7 @@ class TooGoodToGoApi:
         if session.get("refreshToken", None):
             self.newCorrelationId()
             return self.refreshToken()
-        raise TgtgLoggedOutError("You are not logged in")
+        raise TgtgLoggedOutError("You are not logged in.")
 
     def updateSession(self, token: dict[str, str]) -> None:
         self.config["api"]["session"]["accessToken"] = token["refresh_token"]

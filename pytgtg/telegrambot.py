@@ -245,7 +245,8 @@ class TooGoodToGoTelegram:
                 if error.captcha:
                     message = f"Encountered a captcha. Try /refresh\n\nIf this error persists, open the captcha link, open the network tab of your browser console, solve the captcha and copy the response containing the datadome cookie and paste it after the command /set_datadome\n\n{self.createHyperlink(error.captcha, error.captcha[:50] + '…')}"
                     await self.application.bot.send_message(chat_id=user.chat_id, text=message, parse_mode=constants.ParseMode.HTML, disable_notification=True)
-                    await self.refresh_token(user)
+                    if "/refresh" not in error.endpoint:
+                        await self.refresh_token(user)
                     return True
         except:
             logging.error(f"Unexpected handleError error for {user.chat_id}: {error}")
@@ -560,8 +561,7 @@ class TooGoodToGoTelegram:
                 await self.application.bot.send_message(chat_id=user.chat_id, text=f"🔄 Refreshed the tokens.", disable_notification=True)
             user.api.setUserDevice()
         except TgtgConnectionError as error:
-            logging.error(f"Chat {user.chat_id} - {error}")
-            await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error))
+            await self.handleError(error, user)
         except Exception as error:
             logging.error(f"Unexpected refresh_token error for {user.chat_id}: {error}")
 
