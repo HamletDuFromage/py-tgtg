@@ -17,8 +17,8 @@ from exceptions import (
     TgtgUnauthorizedError,
 )
 
-BASE_URL = "https://apptoogoodtogo.com/api/"
-COOKIE_DOMAIN = ".apptoogoodtogo.com"
+BASE_URL = "https://api.toogoodtogo.com/api/"
+COOKIE_DOMAIN = ".toogoodtogo.com"
 
 AUTH = "auth/v5/"
 AUTH_BY_EMAIL = AUTH + "authByEmail"
@@ -51,6 +51,7 @@ class TooGoodToGoApi:
     def __init__(self, config_fname: str = "config.json"):
         self.config_fname = config_fname
         self.config = self.loadConfig()
+        self.setDefaultHeaders()
         self.baseurl = BASE_URL
         self.requests_count = 0
         self.failed_requests = 0
@@ -68,6 +69,20 @@ class TooGoodToGoApi:
             self.saveConfig()
             return True
         return False
+
+    def setDefaultHeaders(self) -> None:
+        headers = {
+            "content-type": "application/json; charset=utf-8",
+            "accept": "application/json",
+            "accept-language": "en-US",
+            "host": "api.toogoodtogo.com",
+            "accept-encoding": "gzip",
+            "x-24hourformat": "false",
+            "x-timezoneoffset": "+00:00"
+        }
+        for key, val in headers.items():
+            self.config["api"]["headers"][key] = val
+        self.saveConfig()
 
     def newCorrelationId(self) -> None:
         self.config["api"]["headers"]["x-correlation-id"] = str(uuid.uuid4())

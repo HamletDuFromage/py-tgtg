@@ -10,8 +10,10 @@
             "content-type": "application/json; charset=utf-8",
             "accept": "application/json",
             "accept-language": "en-US",
-            "host": "apptoogoodtogo.com",
-            "accept-encoding": "gzip"
+            "host": "api.toogoodtogo.com",
+            "accept-encoding": "gzip",
+            "x-24hourformat": "false",
+            "x-timezoneoffset": "+00:00"
         },
         "params": {
             "responseType": "json",
