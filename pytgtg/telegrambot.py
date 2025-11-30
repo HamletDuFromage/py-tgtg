@@ -633,7 +633,8 @@ class TooGoodToGoTelegram:
         text = "⚠️ Common errors and possible diagnosis:\n" \
             "- 401: You've been kicked, try refreshing your tokens with /refresh or log back in with /login.\n" \
             "- 403: Bot's session is temporally unauthorized. If this persists, try /random_ua or changing the bot's IP\n" \
-            "- 404: The requested endpoint wasn't found. Make sure the bot is up-to-date or raise an issue on Github"
+            "- 404: The requested endpoint wasn't found. Make sure the bot is up-to-date or raise an issue on Github\n" \
+            "- 429: Too many requests have been sent. Wait for a while and try again" \
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text) # type: ignore
 
     async def wrong_command(self, update: Update, context: CallbackContext):
