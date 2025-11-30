@@ -171,6 +171,7 @@ class TooGoodToGoTelegram:
         self.TOKEN = TOKEN
 
         self.commands: dict[Callable, str] = {self.help: "List available commands", self.set_email: "Set your TGTG email login", self.login: "Request TGTG login",
+                         self.login_with_pin: "Login with email PIN",
                          self.add_target: "Add an item to watch", self.remove_target: "Remove a watched item", self.show_targets: "Show currently watched items",
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
                          self.add_favorite: "Add item to your TGTG favorites", self.invite: "Create an order invite for a friend", self.cancel_invite: "Cancel order invite",
@@ -524,8 +525,8 @@ class TooGoodToGoTelegram:
         try:
             auth_email_response = user.api.authByEmail()
             user.polling_id = auth_email_response.json().get("polling_id")
-            text = f"📧 The login email should have been sent to {user.api.getCredentials().get('email')}. Copy the 6 digits code you received and send /login_with_pin `[code]` in this chat."
-            await context.bot.send_message(chat_id=user.chat_id, text=text)
+            text = f"📧 The login email should have been sent to {user.api.getCredentials().get('email')}. Copy the 6 digits PIN you received and send /login_with_pin `[PIN]` in this chat."
+            await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.MARKDOWN_V2)
             asyncio.create_task(self.login_polling(user))
         except TgtgConnectionError as error:
             await self.handleError(error, user)
