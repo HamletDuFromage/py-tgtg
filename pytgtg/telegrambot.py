@@ -524,7 +524,7 @@ class TooGoodToGoTelegram:
         try:
             auth_email_response = user.api.authByEmail()
             user.polling_id = auth_email_response.json().get("polling_id")
-            text = f"📧 The login email should have been sent to {user.api.getCredentials().get('email')}. Open the email on your PC or in a private browser on your phone and click the link. Do not open the email on a phone that has the TooGoodToGo app installed. That won't work."
+            text = f"📧 The login email should have been sent to {user.api.getCredentials().get('email')}. Copy the 6 digits code you received and send /login_with_pin `[code]` in this chat."
             await context.bot.send_message(chat_id=user.chat_id, text=text)
             asyncio.create_task(self.login_polling(user))
         except TgtgConnectionError as error:
@@ -538,12 +538,27 @@ class TooGoodToGoTelegram:
                 continue
             if status_code == 200:
                 text = "✅ Successfully logged in!"
+                await self.application.bot.send_message(chat_id=user.chat_id, text=text)
             else: 
                 text = f"⛔ Failed to login (error {status_code})."
-            break
-        else:
-            text = "⛔ Failed to login (polling timed out)."
-        await self.application.bot.send_message(chat_id=user.chat_id, text=text)
+                await self.application.bot.send_message(chat_id=user.chat_id, text=text)
+            return
+
+    async def login_with_pin(self, update: Update, context: CallbackContext) -> None:
+        user = self.getUser(update)
+        try:
+            pin = context.args[0] # type: ignore
+            status_code = user.api.authByRequestPin(user.polling_id, pin)
+            if status_code == 200:
+                text = "✅ Successfully logged in!"
+            else:
+                text = f"⛔ Failed to login (error {status_code})."
+        except TgtgConnectionError as error:
+            await self.handleError(error, user)
+            return
+        except IndexError:
+            text = "Usage:\n/login_with_pin [pin]"
+        await context.bot.send_message(chat_id=user.chat_id, text=text)
 
     async def logout(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)

@@ -22,6 +22,7 @@ COOKIE_DOMAIN = ".toogoodtogo.com"
 
 AUTH = "auth/v5/"
 AUTH_BY_EMAIL = AUTH + "authByEmail"
+AUTH_BY_REQUEST_PIN = AUTH + "authByRequestPin"
 LOGOUT = AUTH + "logout"
 AUTH_POLLING_ID = AUTH + "authByRequestPollingId"
 REFRESH = "token/v1/refresh"
@@ -154,15 +155,8 @@ class TooGoodToGoApi:
             "email": self.getCredentials().get("email"),
         }
         return self.post(AUTH_BY_EMAIL, json=json)
-
-    def authPoll(self, polling_id: str) -> int:
-        credentials = self.getCredentials()
-        json = {
-            "device_type": self.config.get("api").get("deviceType", "ANDROID"),
-            "email": credentials.get("email"),
-            "request_polling_id": polling_id,
-        }
-        post = self.post(AUTH_POLLING_ID, json=json)
+    
+    def handleAuthResponse(self, post: httpx.Response) -> int:
         if post.status_code != 200:
             return post.status_code
         login = post.json()
@@ -172,6 +166,27 @@ class TooGoodToGoApi:
         }
         self.saveConfig()
         return post.status_code
+
+    def authByRequestPin(self, polling_id: str, pin: str) -> int:
+        credentials = self.getCredentials()
+        json = {
+            "device_type": self.config.get("api").get("deviceType", "ANDROID"),
+            "email": credentials.get("email"),
+            "request_pin": pin,
+            "request_polling_id": polling_id
+        }
+        post = self.post(AUTH_BY_REQUEST_PIN, json=json)
+        return self.handleAuthResponse(post)
+
+    def authPoll(self, polling_id: str) -> int:
+        credentials = self.getCredentials()
+        json = {
+            "device_type": self.config.get("api").get("deviceType", "ANDROID"),
+            "email": credentials.get("email"),
+            "request_polling_id": polling_id,
+        }
+        post = self.post(AUTH_POLLING_ID, json=json)
+        return self.handleAuthResponse(post)
 
     def logout(self) -> httpx.Response:
         session = self.getSession()
