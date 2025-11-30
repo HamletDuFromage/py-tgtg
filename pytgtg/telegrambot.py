@@ -525,8 +525,8 @@ class TooGoodToGoTelegram:
         try:
             auth_email_response = user.api.authByEmail()
             user.polling_id = auth_email_response.json().get("polling_id")
-            text = f"📧 The login email should have been sent to {user.api.getCredentials().get('email')}. Copy the 6 digits PIN you received and send /login_with_pin `[PIN]` in this chat."
-            await context.bot.send_message(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.MARKDOWN_V2)
+            text = f"📧 The login email should have been sent to {user.api.getCredentials().get('email')}. Copy the 6 digits PIN you received and send /login_with_pin [PIN] in this chat."
+            await context.bot.send_message(chat_id=user.chat_id, text=text)
             asyncio.create_task(self.login_polling(user))
         except TgtgConnectionError as error:
             await self.handleError(error, user)
