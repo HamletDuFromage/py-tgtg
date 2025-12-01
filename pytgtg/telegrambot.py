@@ -36,6 +36,10 @@ RESURECTION_INTERVAL = 300
 
 PATH = pathlib.Path(__file__).parent.resolve()
 
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+if LOG_LEVEL not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+    LOG_LEVEL = "INFO"
+
 LOGGER_CONFIG = {
     'version': 1,
     'formatters': {
@@ -57,7 +61,7 @@ LOGGER_CONFIG = {
         }
     },
     'root': {
-        'level': 'INFO',
+        'level': LOG_LEVEL,
         'handlers': ['console', 'file']
     },
     'loggers': {
@@ -238,6 +242,7 @@ class TooGoodToGoTelegram:
     async def handleError(self, error: TgtgConnectionError, user: User) -> bool:
         try:
             logging.error(f"Chat {user.chat_id} - {error}")
+            logging.debug(f"Full error details: {error.__dict__}")
             await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True, disable_web_page_preview=True)
             if type(error) == TgtgUnauthorizedError:
                 await self.refresh_token(user)
