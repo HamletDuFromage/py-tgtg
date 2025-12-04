@@ -248,7 +248,7 @@ class TooGoodToGoTelegram:
                 await self.refresh_token(user)
                 return True
             elif type(error) == TgtgBadRequestError:
-                logging.error(f"Bad request: {error.response.json()}")
+                logging.error(f"Bad request: {error.response.text}")
                 return True
             elif type(error) == TgtgForbiddenError:
                 if error.captcha:
