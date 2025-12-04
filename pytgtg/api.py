@@ -140,7 +140,7 @@ class TooGoodToGoApi:
             message = f"Error {post.status_code} for post request {endpoint}"
             if post.status_code == 401:
                 raise TgtgUnauthorizedError(endpoint, message, post)
-            elif post.status_code = 400:
+            elif post.status_code == 400:
                 raise TgtgBadRequestError(endpoint, message, post)
             elif post.status_code == 403:
                 captcha = post.json().get("url", "")
