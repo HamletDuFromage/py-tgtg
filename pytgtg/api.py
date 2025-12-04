@@ -15,6 +15,7 @@ from exceptions import (
     TgtgLoggedOutError,
     TgtgRequestError,
     TgtgUnauthorizedError,
+    TgtgBadRequestError,
 )
 
 BASE_URL = "https://api.toogoodtogo.com/api/"

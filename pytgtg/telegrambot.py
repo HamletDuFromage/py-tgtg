@@ -23,7 +23,8 @@ from telegram.ext import (ApplicationBuilder, CallbackContext, CommandHandler,
 
 from api import TooGoodToGoApi
 from exceptions import (TgtgConnectionError, TgtgForbiddenError,
-                        TgtgLoggedOutError, TgtgUnauthorizedError)
+                        TgtgLoggedOutError, TgtgUnauthorizedError,
+                        TgtgBadRequestError)
 
 MAX_REQUESTS = 1_000_000
 MODULO_REQUESTS_TO_LOG = 140
