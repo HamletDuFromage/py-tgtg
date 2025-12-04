@@ -108,11 +108,14 @@ class TooGoodToGoApi:
         return self.config.get("api").get("headers").get("user-agent")
 
     def randomizeLocation(self, origin: dict[str, float]) -> dict[str, float]:
-        def clamp(value, min_value, max_value):
-            return max(min_value, min(max_value, value))
         var = 1 + random.randint(-100, 100) / 1000
-        origin["latitude"] = clamp(origin.get("latitude", 0) * var, -90, 90)
-        origin["longitude"] = clamp(origin.get("longitude", 0) * var, -180, 180)
+        lat = origin.get("latitude", 0) * var
+        lon = origin.get("longitude", 0) * var
+
+        lat = 180 - lat if lat > 90 else -180 - lat if lat < -90 else lat
+        lon = ((lon + 180) % 360) - 180
+
+        origin["latitude"], origin["longitude"] = lat, lon
         return origin
 
     def url(self, endpoint: str) -> str:
