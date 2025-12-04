@@ -243,7 +243,6 @@ class TooGoodToGoTelegram:
     async def handleError(self, error: TgtgConnectionError, user: User) -> bool:
         try:
             logging.error(f"Chat {user.chat_id} - {error}")
-            logging.debug(f"Full error details: {error.__dict__}")
             await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True, disable_web_page_preview=True)
             if type(error) == TgtgUnauthorizedError:
                 await self.refresh_token(user)
