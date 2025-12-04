@@ -7,6 +7,9 @@ class TgtgConnectionError(Exception):
 class TgtgUnauthorizedError(TgtgConnectionError):
     pass
 
+class TgtgBadRequestError(TgtgConnectionError):
+    pass
+
 class TgtgForbiddenError(TgtgConnectionError):
     def __init__(self, endpoint: str, message: str, captcha: str = "", response=None):
         super().__init__(endpoint=endpoint, message=message, response=response)

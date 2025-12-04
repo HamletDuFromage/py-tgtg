@@ -247,6 +247,8 @@ class TooGoodToGoTelegram:
             if type(error) == TgtgUnauthorizedError:
                 await self.refresh_token(user)
                 return True
+            elif type(error) = TgtgBadRequestError:
+                logging.error(f"Bad request: {error.response.json()}")
             elif type(error) == TgtgForbiddenError:
                 if error.captcha:
                     message = f"Encountered a captcha. Try /refresh\n\nIf this error persists, open the captcha link, open the network tab of your browser console, solve the captcha and copy the response containing the datadome cookie and paste it after the command /set_datadome\n\n{self.createHyperlink(error.captcha, error.captcha[:50] + '…')}"
