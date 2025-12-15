@@ -241,11 +241,13 @@ class TooGoodToGoTelegram:
         return f"{repr(error)}\nType /error for more info."
 
     async def handleError(self, error: TgtgConnectionError, user: User) -> bool:
+        silent = user.api.failed_requests <= 1
         try:
             logging.error(f"Chat {user.chat_id} - {error}")
-            await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True, disable_web_page_preview=True)
+            if silent:
+                await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True, disable_web_page_preview=True)
             if type(error) == TgtgUnauthorizedError:
-                await self.refresh_token(user)
+                await self.refresh_token(user, silent)
                 return True
             elif type(error) == TgtgBadRequestError:
                 logging.error(f"Bad request: {error.response.text}")
