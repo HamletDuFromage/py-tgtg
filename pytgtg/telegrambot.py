@@ -244,7 +244,7 @@ class TooGoodToGoTelegram:
         silent = user.api.failed_requests <= 1
         try:
             logging.error(f"Chat {user.chat_id} - {error}")
-            if silent:
+            if not silent:
                 await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True, disable_web_page_preview=True)
             if type(error) == TgtgUnauthorizedError:
                 await self.refresh_token(user, silent)
