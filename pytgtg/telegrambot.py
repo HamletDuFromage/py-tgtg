@@ -240,14 +240,15 @@ class TooGoodToGoTelegram:
     def errorText(self, error: Exception) -> str:
         return f"{repr(error)}\nType /error for more info."
 
-    async def handleError(self, error: TgtgConnectionError, user: User) -> bool:
-        silent = user.api.failed_requests <= 1
+    async def handleError(self, error: TgtgConnectionError, user: User, silence_first: bool=False) -> bool:
+        silent = user.api.failed_requests <= 1 and silence_first
         try:
             logging.error(f"Chat {user.chat_id} - {error}")
             if not silent:
                 await self.application.bot.send_message(chat_id=user.chat_id, text=self.errorText(error), disable_notification=True, disable_web_page_preview=True)
             if type(error) == TgtgUnauthorizedError:
-                await self.refresh_token(user, silent)
+                if "/refresh" not in error.endpoint:
+                    await self.refresh_token(user, silent)
                 return True
             elif type(error) == TgtgBadRequestError:
                 logging.error(f"Bad request: {error.response.text}")
@@ -335,7 +336,7 @@ class TooGoodToGoTelegram:
                 if text:
                     await self.sendPinnedMessage(chat_id=user.chat_id, text=text, parse_mode=constants.ParseMode.HTML, pinned=user.telegram_config.get("pinning"), email=user.telegram_config.get("email_notifications"))
             except TgtgConnectionError as error:
-                await self.handleError(error, user)
+                await self.handleError(error, user, True)
             except Exception as e:
                 logging.error(f"Unexpected error in watchLoop for {user.chat_id}: {e}")
             sleep_time = max(user.watch_interval - (datetime.datetime.now() - start).total_seconds(), 0)
