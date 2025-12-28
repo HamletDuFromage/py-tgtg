@@ -132,10 +132,11 @@ class TooGoodToGoApi:
         return {"Authorization": f"Bearer {session.get('accessToken')}"}
 
     def post(
-        self, endpoint: str, json: dict = {}, headers: dict = {}
+        self, endpoint: str, json: dict = {}, headers: dict = {}, track_failed: bool = True
     ) -> httpx.Response:
         self.requests_count += 1
-        self.failed_requests += 1
+        if track_failed:
+            self.failed_requests += 1
         try:
             post = self.client.post(
                 self.url(endpoint), json=json, headers={**headers, **self.getHeaders()}
@@ -153,7 +154,8 @@ class TooGoodToGoApi:
                 raise TgtgForbiddenError(endpoint, message, captcha, post)
             else:
                 raise TgtgConnectionError(endpoint, message, post)
-        self.failed_requests = 0
+        if track_failed:
+            self.failed_requests = 0
         return post
 
     def authByEmail(self) -> httpx.Response:
@@ -216,7 +218,7 @@ class TooGoodToGoApi:
     def refreshToken(self) -> httpx.Response:
         session = self.getSession()
         json = {"refresh_token": session.get("refreshToken")}
-        res = self.post(REFRESH, json=json)
+        res = self.post(REFRESH, json=json, track_failed=False)
         self.config["api"]["session"]["refreshToken"] = res.json().get("refresh_token")
         self.config["api"]["session"]["accessToken"] = res.json().get("access_token")
         self.config["origin"] = self.randomizeLocation(self.config.get("origin"))
