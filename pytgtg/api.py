@@ -233,9 +233,6 @@ class TooGoodToGoApi:
             return self.refreshToken()
         raise TgtgLoggedOutError("You are not logged in.")
 
-    def updateSession(self, token: dict[str, str]) -> None:
-        self.config["api"]["session"]["accessToken"] = token["refresh_token"]
-
     def generateDeviceId(self) -> None:
         self.config["api"]["device_id"] = secrets.token_hex(8)
         self.saveConfig()
