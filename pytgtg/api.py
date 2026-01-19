@@ -80,7 +80,7 @@ class TooGoodToGoApi:
             "host": "api.toogoodtogo.com",
             "accept-encoding": "gzip",
             "x-24hourformat": "false",
-            "x-timezoneoffset": "+00:00"
+            "x-timezoneoffset": "+01:00"
         }
         for key, val in headers.items():
             self.config["api"]["headers"][key] = val
@@ -108,7 +108,7 @@ class TooGoodToGoApi:
         return self.config.get("api").get("headers").get("user-agent")
 
     def randomizeLocation(self, origin: dict[str, float]) -> dict[str, float]:
-        var = 1 + random.randint(-100, 100) / 1000
+        var = 1 + random.randint(-10, 10) / 100000
         lat = origin.get("latitude", 0) * var
         lon = origin.get("longitude", 0) * var
 
