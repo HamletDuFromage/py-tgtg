@@ -181,8 +181,9 @@ class TooGoodToGoTelegram:
                          self.watch: "Start watching items", self.stop_watching: "Stop watching items", self.dry_run: "See favourites magic bags matching targets", self.pin_results: "Pin messages about available Magic Bags",
                          self.add_favorite: "Add item to your TGTG favorites", self.invite: "Create an order invite for a friend", self.cancel_invite: "Cancel order invite",
                          self.notify_email: "Notify of matches by email", self.status: "Show the bot's status", self.clear_history: "Clear history for seen items",
-                         self.refresh: "Get a new set of tokens", self.random_ua: "Randomly generate a new user agent", self.set_datadome: "Set datadome cookie", self.logout: "Close this tgtg session",
-                         self.shutdown: "Shut your client down", self.about: "Display bot's info", self.error: "See common errors", self.start: "Welcome"}
+                         self.refresh: "Get a new set of tokens", self.random_ua: "Randomly generate a new user agent", self.set_datadome: "Set datadome cookie", 
+                         self.set_location: "Set your location (latitude, longitude)",
+                         self.logout: "Close this tgtg session", self.shutdown: "Shut your client down", self.about: "Display bot's info", self.error: "See common errors", self.start: "Welcome"}
         self.users = self.getUsers(r"^config_(.+)\.json$")
         try:
             with open("email_credentials.json", "r") as infile:
@@ -600,6 +601,16 @@ class TooGoodToGoTelegram:
         user = self.getUser(update)
         user.api.randomizeUserAgent()
         await self.refresh_token(user)
+
+    async def set_location(self, update: Update, context: CallbackContext) -> None:
+        user = self.getUser(update)
+        try:
+            latitude = float(context.args[0]) # type: ignore
+            longitude = float(context.args[1]) # type: ignore
+            user.api.setLocation(latitude, longitude)
+            await self.application.bot.send_message(chat_id=user.chat_id, text=f"Set new location to ({latitude}, {longitude})", disable_notification=True)
+        except (IndexError, ValueError):
+            await context.bot.send_message(chat_id=user.chat_id, text="Usage:\n/set_location [latitude] [longitude]")
 
     async def set_datadome(self, update: Update, context: CallbackContext) -> None:
         user = self.getUser(update)

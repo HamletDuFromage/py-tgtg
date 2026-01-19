@@ -107,6 +107,11 @@ class TooGoodToGoApi:
     def getUserAgent(self) -> str:
         return self.config.get("api").get("headers").get("user-agent")
 
+    def setLocation(self, latitude: float, longitude: float) -> None:
+        self.config["origin"]["latitude"] = latitude
+        self.config["origin"]["longitude"] = longitude
+        self.saveConfig()
+
     def randomizeLocation(self, origin: dict[str, float]) -> dict[str, float]:
         var = 1 + random.randint(-10, 10) / 100000
         lat = origin.get("latitude", 0) * var
